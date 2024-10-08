@@ -1,0 +1,9 @@
+langchain
+langchain-openai
+langchain-community
+jupyter
+openai
+elevenlabs
+gradio
+python-dotenv
+streamlit
