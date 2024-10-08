@@ -25,6 +25,37 @@ bed, and lay down stiffly—was instantly asleep.
 """
 
 GATSBY_2 = """\
+Inside, the crimson room bloomed with light. Tom and Miss Baker sat at
+either end of the long couch and she read aloud to him from the
+Saturday Evening Post—the words, murmurous and uninflected, running
+together in a soothing tune. The lamplight, bright on his boots and
+dull on the autumn-leaf yellow of her hair, glinted along the paper as
+she turned a page with a flutter of slender muscles in her arms.
+
+When we came in she held us silent for a moment with a lifted hand.
+
+“To be continued,” she said, tossing the magazine on the table, “in
+our very next issue.”
+
+Her body asserted itself with a restless movement of her knee, and she
+stood up.
+
+“Ten o’clock,” she remarked, apparently finding the time on the
+ceiling. “Time for this good girl to go to bed.”
+
+“Jordan’s going to play in the tournament tomorrow,” explained Daisy,
+“over at Westchester.”
+
+“Oh—you’re Jordan Baker.”
+
+I knew now why her face was familiar—its pleasing contemptuous
+expression had looked out at me from many rotogravure pictures of the
+sporting life at Asheville and Hot Springs and Palm Beach. I had heard
+some story of her too, a critical, unpleasant story, but what it was I
+had forgotten long ago.
+
+“Good night,” she said softly. “Wake me at eight, won’t you.”
+
 “If you’ll get up.”
 
 “I will. Good night, Mr. Carraway. See you anon.”
@@ -50,4 +81,18 @@ of weekends out here this summer. I think the home influence will be
 very good for her.”
 
 Daisy and Tom looked at each other for a moment in silence.
+
+“Is she from New York?” I asked quickly.
+
+“From Louisville. Our white girlhood was passed together there. Our
+beautiful white—”
+
+“Did you give Nick a little heart to heart talk on the veranda?”
+demanded Tom suddenly.
+
+“Did I?” She looked at me. “I can’t seem to remember, but I think we
+talked about the Nordic race. Yes, I’m sure we did. It sort of crept
+up on us and first thing you know—”
+
+“Don’t believe everything you hear, Nick,” he advised me.
 """

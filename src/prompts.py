@@ -1,4 +1,4 @@
-class SplitTextPrompt:
+class SplitTextPromptV1:
     SYSTEM = """\
 You are a helpful assistant proficient in literature and language.
 Imagine you are helping to prepare the provided text for narration to create the audio book.
@@ -37,7 +37,9 @@ Format your answer as a following JSON:
 
 Ensure the order of the parts in the JSON output matches the original order of the text.
 
-Example of text split by characters, already in the target format.
+Examples of text split by characters, already in the target format.
+
+Example 1.
 {{
     "characters": ["Mr. Gatz", "narrator"],
     "parts":
@@ -53,6 +55,54 @@ Example of text split by characters, already in the target format.
         {{"character": "Mr. Gatz", "text": "He fumbled at the embroidered coverlet, trying to take it from the bed, and lay down stiffly—was instantly asleep."}},
     ]
 }}
+
+Example 2.
+{{
+    'characters': [
+        'narrator',
+        'Mr. Carraway',
+        'Daisy',
+        'Miss Baker',
+        'Tom',
+        'Nick'
+    ],
+    'parts': [
+        {{'character': 'narrator', 'text': '“If you’ll get up.”'}},
+        {{'character': 'Mr. Carraway', 'text': '“I will. Good night, Mr. Carraway. See you anon.”'}},
+        {{'character': 'Daisy', 'text': '“Of course you will,” confirmed Daisy. “In fact I think I’ll arrange a marriage. Come over often, Nick, and I’ll sort of—oh—fling you together. You know—lock you up accidentally in linen closets and push you out to sea in a boat, and all that sort of thing—”'}},
+        {{'character': 'Miss Baker', 'text': '“Good night,” called Miss Baker from the stairs. “I haven’t heard a word.”'}},
+        {{'character': 'Tom', 'text': '“She’s a nice girl,” said Tom after a moment. “They oughtn’t to let her run around the country this way.”'}},
+        {{'character': 'Daisy', 'text': '“Who oughtn’t to?” inquired Daisy coldly.'}},
+        {{'character': 'narrator', 'text': '“Her family.”'}},
+        {{'character': 'narrator', 'text': '“Her family is one aunt about a thousand years old. Besides, Nick’s going to look after her, aren’t you, Nick? She’s going to spend lots of weekends out here this summer. I think the home influence will be very good for her.”'}},
+        {{'character': 'narrator', 'text': 'Daisy and Tom looked at each other for a moment in silence.'}}
+    ]
+}}
+"""
+
+    USER = """\
+Here is the book sample:
+---
+{text}"""
+
+
+class SplitTextPromptV2:
+    SYSTEM = """\
+you are provided with the book sample.
+please rewrite it and insert xml tags indicating character to whom current phrase belongs.
+for example: <narrator>I looked at her</narrator><Jill>What are you looking at?</Jill>
+
+Notes:
+- sometimes narrator is one of characters taking part in the action.
+in this case use narrator's name (if available) instead of "narrator"
+- if it's impossible to identify character name from the text provided, use codes "c1", "c2", etc,
+where "c" prefix means character and number is used to enumerate unknown characters
+- all quotes of direct speech must be attributed to characters, for example:
+<Tom>“She’s a nice girl,”</Tom><narrator>said Tom after a moment.</narrator>
+mind that sometimes narrator could also be a character.
+- use ALL available context to determine the character.
+sometimes the character name becomes clear from the following phrases
+- DO NOT include in your response anything except for the original text with character xml tags!!!
 """
 
     USER = """\
