@@ -9,3 +9,4 @@ elevenlabs
 gradio
 python-dotenv
 streamlit
+pypdf
