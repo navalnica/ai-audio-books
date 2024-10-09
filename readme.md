@@ -8,5 +8,6 @@
     - [ ] map characters to available voices
     - [ ] use LLM to recognize characters for a given text and provide descriptions
 detailed enough to select appropriate voice
+- [ ] preprocess text phrases for TTS: add intonation markers, auto-set TTS params
 - [ ] run TTS to create narration
 - [ ] add effects. mix them with created narration
