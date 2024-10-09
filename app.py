@@ -66,7 +66,7 @@ with open("data/the-three-little-pigs.txt") as f:
     STORY = f.read()
 
 
-VOICES = pd.read_csv("all_voices.csv").query("language == 'en'")
+VOICES = pd.read_csv("data/11labs_tts_voices.csv").query("language == 'en'")
 
 
 class AudiobookBuilder:
@@ -80,7 +80,7 @@ class AudiobookBuilder:
         self._aiml_api_key = aiml_api_key or os.environ["AIML_API_KEY"]
         self._aiml_base_url = aiml_base_url
         self._aiml_client = OpenAI(api_key=api_key, base_url=self._aiml_base_url)
-        self._default_narrator_voice = "XALcFq0WF65uNKzmpcZW"
+        self._default_narrator_voice = "ALY2WaJPY0oBJlqpQbfW"
         self._eleven_api_key = eleven_api_key or os.environ["ELEVEN_API_KEY"]
 
     def annotate_text(self, text: str) -> str:
