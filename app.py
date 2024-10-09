@@ -1,13 +1,18 @@
 import json
 import os
 import re
+from pathlib import Path
+from uuid import uuid4
 
 import librosa
 import requests
 import gradio as gr
 import pandas as pd
 from dotenv import load_dotenv
+from elevenlabs import AsyncElevenLabs
 from openai import OpenAI
+
+from src.tts import tts_astream
 
 
 load_dotenv()
@@ -77,7 +82,8 @@ class AudiobookBuilder:
         self._aiml_base_url = aiml_base_url
         self._aiml_client = OpenAI(api_key=api_key, base_url=self._aiml_base_url)
         self._default_narrator_voice = "ALY2WaJPY0oBJlqpQbfW"
-        self._eleven_api_key = eleven_api_key or os.environ["ELEVEN_API_KEY"]
+        self._eleven_api_key = eleven_api_key or os.environ["11LABS_API_KEY"]
+        self._eleven_client = AsyncElevenLabs(api_key=self._eleven_api_key)
 
     def annotate_text(self, text: str) -> str:
         response = self._send_request_to_llm(messages=[
@@ -108,29 +114,34 @@ class AudiobookBuilder:
         )
         return json.loads(response["choices"][0]["message"]["content"])
     
-    def generate_audio(
+    async def generate_audio(
             self,
             annotated_text: str,
             character_to_voice: dict[str, str],
-            *,
-            chunk_size: int = 1024,
-    ) -> None:
+    ) -> Path:
+        results = []
         current_character = "narrator"
-        with open("audiobook.mp3", "wb") as ab:
-            for line in annotated_text.splitlines():
-                cleaned_line = line.strip().lower()
-                if not cleaned_line:
-                    continue
-                try:
-                    current_character = re.findall(r"\[[\w\s]+\]", cleaned_line)[0][1:-1]
-                except:
-                    pass
-                voice_id = character_to_voice[current_character]
-                character_text = cleaned_line[cleaned_line.rfind("]")+1:].lstrip()
-                fragment = self._send_request_to_tts(voice_id=voice_id, text=character_text)
-                for chunk in fragment.iter_content(chunk_size=chunk_size):
+        for line in annotated_text.splitlines():
+            cleaned_line = line.strip().lower()
+            if not cleaned_line:
+                continue
+            try:
+                current_character = re.findall(r"\[[\w\s]+\]", cleaned_line)[0][1:-1]
+            except:
+                pass
+            voice_id = character_to_voice[current_character]
+            character_text = cleaned_line[cleaned_line.rfind("]")+1:].lstrip()
+            results.append(tts_astream(voice_id=voice_id, text=character_text))
+
+        save_dir = Path("data") / "books"
+        save_dir.mkdir(exist_ok=True)
+        save_path = save_dir / f"{uuid4()}.wav"
+        with open(save_path, "wb") as ab:
+            for result in results:
+                async for chunk in result:
                     if chunk:
-                        ab.write(chunk)           
+                        ab.write(chunk)
+        return save_path
 
     @staticmethod
     def get_unique_characters(annotated_text: str) -> list[str]:
@@ -200,16 +211,16 @@ class AudiobookBuilder:
         return response
 
 
-def respond(text):
+async def respond(text):
     builder = AudiobookBuilder()
     
     annotated_text = builder.annotate_text(text)
     unique_characters = builder.get_unique_characters(annotated_text)
     character_to_gender = builder.classify_characters(text, unique_characters)
     character_to_voice = builder.map_characters_to_voices(character_to_gender)
-    builder.generate_audio(annotated_text, character_to_voice)
+    save_path = await builder.generate_audio(annotated_text, character_to_voice)
     
-    audio, sr = librosa.load("audiobook.mp3", sr=None)
+    audio, sr = librosa.load(str(save_path), sr=None)
     return (sr, audio)
 
 
