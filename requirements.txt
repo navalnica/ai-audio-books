@@ -1,8 +1,10 @@
 langchain
 langchain-openai
 langchain-community
+librosa
 jupyter
 openai
+pandas
 elevenlabs
 gradio
 python-dotenv
