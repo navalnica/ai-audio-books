@@ -67,6 +67,13 @@ and uppercase words to add emphasis or convey emotion. For adding more emotion u
 duplicate special characters for example "!!!".
 Do not remove or add any different words.
 Only alter the presentation of the existing words.
+
+Also you can add pause in the output text if it needed 
+The most consistent way is programmatically using the syntax <break time="1.5s" />. or any time in second if it fit to the text
+This will create an exact and natural pause in the speech.
+It is not just added silence between words,
+but the AI has an actual understanding of this syntax and will add a natural pause.
+
 After modifying the text, adjust the "stability", "similarity_boost" and "style" parameters
 according to the level of emotional intensity in the modified text.
 Higher emotional intensity should lower the "stability" and raise the "similarity_boost". 
