@@ -62,10 +62,6 @@ clear and consistent manner, suitable for subsequent text-to-speech processing.
 """
 
 
-with open("data/the-three-little-pigs.txt") as f:
-    STORY = f.read()
-
-
 VOICES = pd.read_csv("data/11labs_tts_voices.csv").query("language == 'en'")
 
 
