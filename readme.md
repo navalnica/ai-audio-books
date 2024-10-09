@@ -5,7 +5,7 @@
 - [ ] bugfix w/ 11labs api
 - [ ] async synthesis
 - [ ] map characters to voices
-- [x] emotion enrichment: add intonation markers, auto-set TTS params
+- [] emotion enrichment: add intonation markers, auto-set TTS params
 - [x] generate good enough sound effects for background
 - [ ] mix effects with narrration
 - [x] allow files uplaod (.txt)
