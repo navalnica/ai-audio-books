@@ -16,9 +16,6 @@ api_key = os.getenv("AIML_API_KEY")
 FILE_SIZE_MAX = 0.5  # in mb
 
 
-VOICES = pd.read_csv("data/11labs_tts_voices.csv").query("language == 'en'")
-
-
 def respond(text):
     builder = AudiobookBuilder()
     builder.run(text=text)
