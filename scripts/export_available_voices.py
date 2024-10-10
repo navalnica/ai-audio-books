@@ -32,11 +32,17 @@ def main(*, api_key: str | None, output_csv_path: str) -> None:
         },
     ) for voice in response.voices])
     available_voices = pd.concat((
-        available_voices.drop(columns="labels"),
-        pd.DataFrame.from_records(available_voices["labels"].to_list()),
+        available_voices.drop(columns=[
+            "labels", "description", "available_for_tiers", "settings", "sharing",
+            "high_quality_base_model_ids", "safety_control", "voice_verification",
+            "category", "samples",
+        ]),
+        pd.DataFrame.from_records(available_voices["labels"]).rename(
+            columns={"use_case": "category"}
+        ),
     ), axis=1)
 
-    available_voices.to_csv(output_csv_path, index=False)
+    available_voices.drop(columns="fine_tuning").to_csv(output_csv_path, index=False)
 
 
 if __name__ == "__main__":
