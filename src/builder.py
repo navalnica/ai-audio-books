@@ -1,6 +1,6 @@
 from langchain_community.callbacks import get_openai_callback
 
-from src.audio_generators import AudioGeneratorSimple
+from src.audio_generators import AudioGeneratorSimple, AudioGeneratorWithEffects
 from src.lc_callbacks import LCMessageLoggerAsync
 from src.select_voice_chain import SelectVoiceChainOutput, VoiceSelector
 from src.text_split_chain import SplitTextOutput, create_split_text_chain
@@ -13,7 +13,7 @@ class AudiobookBuilder:
         self.voice_selector = VoiceSelector(
             csv_table_fp="data/11labs_available_tts_voices.csv"
         )
-        self.audio_generator = AudioGeneratorSimple()
+        self.audio_generator = AudioGeneratorWithEffects()
 
     async def split_text(self, text: str) -> SplitTextOutput:
         chain = create_split_text_chain(llm_model=GPTModels.GPT_4o)

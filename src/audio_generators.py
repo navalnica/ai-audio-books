@@ -59,57 +59,55 @@ class AudioGeneratorWithEffects:
 
     def __init__(self):
         self.effect_generator = EffectGeneratorAsync(AI_ML_API_KEY)
+        self.semaphore = asyncio.Semaphore(ELEVENLABS_MAX_PARALLEL)
+        self.temp_files = []
 
-    async def generate_audio_with_text_modification(
+    async def generate_audio(
         self,
-        annotated_text: str,
+        text_split: SplitTextOutput,
         character_to_voice: dict[str, str],
     ) -> Path:
         """Main method to generate the audiobook with TTS, emotion, and sound effects."""
-        num_lines = len(annotated_text.splitlines())
+        num_lines = len(text_split.phrases)
         lines_for_sound_effect = self._select_lines_for_sound_effect(num_lines)
 
         # Step 1: Process and modify text
         modified_texts, sound_emotion_results = await self._process_and_modify_text(
-            annotated_text, lines_for_sound_effect
+            text_split, lines_for_sound_effect
         )
 
         # Step 2: Generate TTS audio for modified text
-        tts_results, temp_files = await self._generate_tts_audio(
-            annotated_text, modified_texts, character_to_voice
+        tts_results, self.temp_files = await self._generate_tts_audio(
+            text_split, modified_texts, character_to_voice
         )
 
         # Step 3: Add sound effects to selected lines
         audio_chunks = await self._add_sound_effects(
-            tts_results, lines_for_sound_effect, sound_emotion_results, temp_files
+            tts_results, lines_for_sound_effect, sound_emotion_results, self.temp_files
         )
 
         # Step 4: Merge audio files
-        final_output = self._merge_audio_files(audio_chunks)
+        normalized_audio_chunks = self._normalize_audio_chunks(audio_chunks, self.temp_files)
+        final_output = self._merge_audio_files(normalized_audio_chunks)
 
         # Clean up temporary files
-        self._cleanup_temp_files(temp_files)
+        self._cleanup_temp_files(self.temp_files)
 
         return final_output
 
     def _select_lines_for_sound_effect(self, num_lines: int) -> list[int]:
         """Select 20% of the lines randomly for sound effect generation."""
-        return random.sample(range(num_lines), k=int(0.2 * num_lines))
+        return random.sample(range(num_lines), k=int(0.0 * num_lines))
 
     async def _process_and_modify_text(
-        self, annotated_text: str, lines_for_sound_effect: list[int]
+        self, text_split: SplitTextOutput, lines_for_sound_effect: list[int]
     ) -> tuple[list[dict], list[dict]]:
         """Process the text by modifying it and generating tasks for sound effects."""
         tasks_for_text_modification = []
         sound_emotion_tasks = []
 
-        for idx, line in enumerate(annotated_text.splitlines()):
-            cleaned_line = line.strip().lower()
-            if not cleaned_line:
-                continue
-
-            # Extract character text
-            character_text = cleaned_line[cleaned_line.rfind("]") + 1 :].lstrip()
+        for idx, character_phrase in enumerate(text_split.phrases):
+            character_text = character_phrase.text.strip().lower()
 
             # Add text emotion modification task
             tasks_for_text_modification.append(
@@ -132,38 +130,35 @@ class AudioGeneratorWithEffects:
 
     async def _generate_tts_audio(
         self,
-        annotated_text: str,
-        modified_texts: list[dict],  # TODO ? type ?
+        text_split: SplitTextOutput,
+        modified_texts: list[dict],
         character_to_voice: dict[str, str],
     ) -> tuple[list[str], list[str]]:
         """Generate TTS audio for modified text."""
         tasks_for_tts = []
         temp_files = []
-        current_character = "narrator"
 
-        for idx, (modified_text, line) in enumerate(
-            zip(modified_texts, annotated_text.splitlines())
+        async def tts_astream_with_semaphore(voice_id: str, text: str, params: dict):
+            async with self.semaphore:
+                iter_ = tts_astream(voice_id=voice_id, text=text, params=params)
+                bytes_ = await consume_aiter(iter_)
+                return bytes_
+
+        for idx, (modified_text, character_phrase) in enumerate(
+            zip(modified_texts, text_split.phrases)
         ):
-            cleaned_line = line.strip().lower()
+            voice_id = character_to_voice[character_phrase.character]
 
-            # Extract character
-            try:
-                current_character = re.findall(r"\[[\w\s]+\]", cleaned_line)[0][1:-1]
-            except IndexError:
-                pass
-
-            # Get voice ID and generate TTS
-            voice_id = character_to_voice[current_character]
-            tasks_for_tts.append(
-                tts_astream(
-                    voice_id=voice_id,
-                    text=modified_text["text"],  # TODO ? type ?
-                    params=modified_texts["params"],  # TODO ? type ?
-                )
+            # Use the semaphore-protected TTS function
+            task = tts_astream_with_semaphore(
+                voice_id=voice_id,
+                text=modified_text["modified_text"],
+                params=modified_text["params"],
             )
+            tasks_for_tts.append(task)
 
         # Gather all TTS results
-        tts_results = await asyncio.gather(*(consume_aiter(t) for t in tasks_for_tts))
+        tts_results = await asyncio.gather(*tasks_for_tts)
 
         # Save the results to temporary files
         tts_audio_files = []
@@ -189,15 +184,11 @@ class AudioGeneratorWithEffects:
         for idx, tts_filename in enumerate(tts_audio_files):
             # If the line has sound emotion data, generate sound effect and overlay
             if idx in lines_for_sound_effect:
-                sound_effect_data = sound_emotion_results.pop(
-                    0
-                )  # Get next sound effect data
+                sound_effect_data = sound_emotion_results.pop(0)  # Get next sound effect data
                 sound_effect_filename = f"sound_effect_{idx}.wav"
 
                 # Generate sound effect asynchronously
-                sound_result = await consume_aiter(
-                    sound_generation_astream(sound_effect_data)
-                )
+                sound_result = await consume_aiter(sound_generation_astream(sound_effect_data))
                 with open(sound_effect_filename, "wb") as ab:
                     for chunk in sound_result:
                         ab.write(chunk)
@@ -216,6 +207,25 @@ class AudioGeneratorWithEffects:
                 audio_chunks.append(tts_filename)
 
         return audio_chunks
+
+    def _normalize_audio(self, audio_segment: AudioSegment, target_dBFS: float = -20.0) -> AudioSegment:
+        """Normalize an audio segment to the target dBFS level."""
+        change_in_dBFS = target_dBFS - audio_segment.dBFS
+        return audio_segment.apply_gain(change_in_dBFS)
+
+    def _normalize_audio_chunks(self, audio_filenames: list[str], temp_files, target_dBFS: float = -20.0) -> list[str]:
+        """Normalize all audio chunks to the target volume level."""
+        normalized_files = []
+        for audio_file in audio_filenames:
+            audio_segment = AudioSegment.from_file(audio_file)
+            normalized_audio = self._normalize_audio(audio_segment, target_dBFS)
+
+            normalized_filename = f"normalized_{Path(audio_file).stem}.wav"
+            normalized_audio.export(normalized_filename, format="wav")
+            normalized_files.append(normalized_filename)
+            temp_files.append(normalized_filename)
+
+        return normalized_files
 
     def _merge_audio_files(self, audio_filenames: list[str]) -> Path:
         """Helper function to merge multiple audio files into one."""
