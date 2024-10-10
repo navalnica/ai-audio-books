@@ -4,6 +4,7 @@ import click
 import pandas as pd
 from dotenv import load_dotenv
 from elevenlabs import ElevenLabs
+from elevenlabs.core import ApiError
 from tqdm.auto import tqdm
 
 
@@ -27,16 +28,23 @@ def main(*, api_key: str | None, input_csv_path: str) -> None:
     client = ElevenLabs(api_key=api_key)
     voices_to_import = pd.read_csv(input_csv_path)
 
-    for _, row in tqdm(voices_to_import.iterrows()):
-        client.voices.add_sharing_voice(
-            public_user_id=(public_user_id := row["public_owner_id"]),
-            voice_id=(voice_id := row["voice_id"]),
-            new_name=(name := row["name"]),
-        )
-        logger.info(
-            f"Added shared voice with `{public_user_id = }`, `{voice_id = }`, "
-            f"`{name = }`."
-        )
+    for _, row in tqdm(voices_to_import.iterrows(), total=len(voices_to_import)):
+        try:
+            client.voices.add_sharing_voice(
+                public_user_id=(public_user_id := row["public_owner_id"]),
+                voice_id=(voice_id := row["voice_id"]),
+                new_name=(name := row["name"]),
+            )
+        except ApiError:
+            logger.error(
+                f"Shared voice with `{public_user_id = }`, `{voice_id = }` "
+                "already added."
+            )
+        else:
+            logger.info(
+                f"Added shared voice with `{public_user_id = }`, `{voice_id = }`, "
+                f"`{name = }`."
+            )
 
 
 if __name__ == "__main__":
