@@ -9,6 +9,11 @@
 - [x] generate good enough sound effects for background
 - [ ] mix effects with narrration
 - [x] allow files uplaod (.txt)
+- optimizations
+    - [ ] combine sequential phrases of same character in single phrase
+    - [ ] support large texts. use batching. problem: how to ensure same characters?
+can detect characters in first prompt, then split text in each batch into character phrases
+    - [ ] probably split large phrases into smaller ones
 
 ### Backlog
 - [ ] prepare text for TTS

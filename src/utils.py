@@ -15,3 +15,7 @@ def get_chat_llm(llm_model: GPTModels, temperature=0.0):
         model=llm_model, temperature=temperature, timeout=Timeout(60, connect=4)
     )
     return llm
+
+
+async def consume_aiter(aiterator):
+    return [x async for x in aiterator]
