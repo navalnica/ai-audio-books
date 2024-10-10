@@ -1,10 +1,10 @@
+import asyncio
 import json
 import os
 import re
 from pathlib import Path
 from uuid import uuid4
 
-import librosa
 import requests
 import gradio as gr
 import pandas as pd
@@ -71,6 +71,10 @@ clear and consistent manner, suitable for subsequent text-to-speech processing.
 VOICES = pd.read_csv("data/11labs_tts_voices.csv").query("language == 'en'")
 
 
+async def consume_aiter(aiterator):
+    return [x async for x in aiterator]
+
+
 class AudiobookBuilder:
     def __init__(
             self,
@@ -120,7 +124,7 @@ class AudiobookBuilder:
             annotated_text: str,
             character_to_voice: dict[str, str],
     ) -> Path:
-        results = []
+        tasks = []
         current_character = "narrator"
         for line in annotated_text.splitlines():
             cleaned_line = line.strip().lower()
@@ -132,16 +136,18 @@ class AudiobookBuilder:
                 pass
             voice_id = character_to_voice[current_character]
             character_text = cleaned_line[cleaned_line.rfind("]")+1:].lstrip()
-            results.append(tts_astream(voice_id=voice_id, text=character_text))
+            tasks.append(tts_astream(voice_id="vfaqCOvlrKi4Zp7C2IAm", text=character_text))
 
+        # aresults = asyncio.gather(*(consume_aiter(t) for t in tasks))
+        # results = await aresults
+        results = await asyncio.gather(*(consume_aiter(t) for t in tasks))
         save_dir = Path("data") / "books"
         save_dir.mkdir(exist_ok=True)
         save_path = save_dir / f"{uuid4()}.wav"
         with open(save_path, "wb") as ab:
             for result in results:
-                async for chunk in result:
-                    if chunk:
-                        ab.write(chunk)
+                for chunk in result:
+                    ab.write(chunk)
         return save_path
 
     @staticmethod
@@ -219,7 +225,7 @@ def parse_pdf(file_path):
     return "\n".join([doc.page_content for doc in documents])
 
 
-async def respond(text, uploaded_file):
+async def respond(text: str, uploaded_file) -> tuple[Path | None, str]:
     # Check if a file is uploaded
     if uploaded_file is not None:
         # Save the uploaded file temporarily to check its size
@@ -249,9 +255,7 @@ async def respond(text, uploaded_file):
     character_to_gender = builder.classify_characters(text, unique_characters)
     character_to_voice = builder.map_characters_to_voices(character_to_gender)
     save_path = await builder.generate_audio(annotated_text, character_to_voice)
-    
-    audio, sr = librosa.load(str(save_path), sr=None)
-    return (sr, audio)
+    return save_path, ""
 
 
 def refresh():
@@ -267,7 +271,7 @@ with gr.Blocks(title="Audiobooks Generation") as ui:
         file_input = gr.File(label="Upload a text file or PDF", file_types=['.txt', '.pdf'])
 
     with gr.Row(variant="panel"):
-        audio_output = gr.Audio(label="Generated audio", type="numpy")
+        audio_output = gr.Audio(label="Generated audio", type="filepath")
         error_output = gr.Textbox(label="Error Messages", interactive=False, visible=False)  # Initially hidden
 
     submit_button = gr.Button("Submit")
@@ -286,20 +290,20 @@ with gr.Blocks(title="Audiobooks Generation") as ui:
 
     # Hide error message dynamically when input is received
     text_input.change(
-        fn=lambda: gr.update(visible=False),  # Hide the error field
+        fn=lambda _: gr.update(visible=False),  # Hide the error field
         inputs=[text_input],
         outputs=error_output
     )
 
     file_input.change(
-        fn=lambda: gr.update(visible=False),  # Hide the error field
+        fn=lambda _: gr.update(visible=False),  # Hide the error field
         inputs=[file_input],
         outputs=error_output
     )
 
     # To clear error field when refreshing
     refresh_button.click(
-        fn=lambda: gr.update(visible=False),  # Hide the error field
+        fn=lambda _: gr.update(visible=False),  # Hide the error field
         inputs=[],
         outputs=error_output,
     )
