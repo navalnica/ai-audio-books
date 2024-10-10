@@ -136,10 +136,8 @@ class AudiobookBuilder:
                 pass
             voice_id = character_to_voice[current_character]
             character_text = cleaned_line[cleaned_line.rfind("]")+1:].lstrip()
-            tasks.append(tts_astream(voice_id="vfaqCOvlrKi4Zp7C2IAm", text=character_text))
+            tasks.append(tts_astream(voice_id=voice_id, text=character_text))
 
-        # aresults = asyncio.gather(*(consume_aiter(t) for t in tasks))
-        # results = await aresults
         results = await asyncio.gather(*(consume_aiter(t) for t in tasks))
         save_dir = Path("data") / "books"
         save_dir.mkdir(exist_ok=True)
