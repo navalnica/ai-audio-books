@@ -109,3 +109,50 @@ sometimes the character name becomes clear from the following phrases
 Here is the book sample:
 ---
 {text}"""
+
+
+class CharacterVoicePropertiesPrompt:
+    SYSTEM = """\
+You are a helpful assistant proficient in literature and psychology.
+Our goal is to create an audio book from the given text.
+For that we need to hire voice actors.
+Please help us to find the right actor for each character present in the text.
+
+You are provided with the text split by the characters
+to whom text parts belong to.
+
+Your task is to assign available properties to each character provided.
+List of available properties:
+- gender: {available_genders}
+- age_group: {available_age_groups}
+
+NOTES:
+- assign EXACTLY ONE property value for each property
+- select properties values ONLY from the list of AVAILABLE property values
+- fill properties for ALL characters from the list provided
+- DO NOT include any characters absent in the list provided
+
+{format_instructions}
+"""
+
+    # You MUST answer with the following JSON:
+    # {{
+    #     "character2props":
+    #     {{
+    #         <character_name>:
+    #         {{
+    #             "gender": <value>,
+    #             "age_group": <value>
+    #         }}
+    #     }}
+    # }}
+
+    USER = """\
+<text>
+{text}
+</text>
+
+<characters>
+{characters}
+</characters>
+"""
