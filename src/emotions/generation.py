@@ -123,7 +123,7 @@ class EffectGeneratorAsync(AbstractEffectGenerator):
             raise RuntimeError(f"Unexpected Error: {e}")
 
 
-    async def generate_parameters_for_sound_effect(self, text: str, generated_audio_file: str) -> dict:
+    async def generate_parameters_for_sound_effect(self, text: str, generated_audio_file: str = None) -> dict:
         llm_output = await self.generate_text_for_sound_effect(text)
         if generated_audio_file is not None:
             llm_output['duration_seconds'] = get_audio_duration(generated_audio_file)
