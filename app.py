@@ -2,8 +2,6 @@ import os
 from pathlib import Path
 
 import gradio as gr
-import librosa
-import pandas as pd
 from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 
@@ -14,14 +12,6 @@ from src.config import logger
 
 api_key = os.getenv("AIML_API_KEY")
 FILE_SIZE_MAX = 0.5  # in mb
-
-
-def respond(text):
-    builder = AudiobookBuilder()
-    builder.run(text=text)
-
-    audio, sr = librosa.load("audiobook.mp3", sr=None)
-    return (sr, audio)
 
 
 def parse_pdf(file_path):
@@ -60,8 +50,8 @@ async def respond(text: str, uploaded_file) -> tuple[Path | None, str]:
             return (None, str(e))
 
     builder = AudiobookBuilder()
-    save_path = await builder.run(text=text)
-    return save_path, ""
+    audio_fp = await builder.run(text=text)
+    return audio_fp, ""
 
 
 def refresh():
