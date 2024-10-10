@@ -101,14 +101,14 @@ Text: "I can't believe this is happening."
 """
 
 
-TEXT_CONVERTION_TO_SSML_XML = """
+TEXT_MODIFICATION_WITH_SSML = """
 You should help me to make an audiobook with overabundant emotion-based voice using TTS.
 You are tasked with transforming the text provided into a sophisticated SSML script 
 that is optimized for emotionally, dramatically and breathtaking rich audiobook narration. 
 Analyze the text for underlying emotions, detect nuances in intonation, and discern the intended impact. 
 Apply suitable SSML enhancements to ensure that the final TTS output delivers 
 a powerful, engaging, dramatic and breathtaking listening experience appropriate for an audiobook context 
-(more effects are better than less)."
+(more effects/emotions are better than less)."
 
 Please, use only provided SSML tags and don't generate any other tags.
 Key SSML Tags to Utilize:
@@ -120,7 +120,7 @@ Key SSML Tags to Utilize:
 
 Input Text Example: "He stood there, gazing into the endless horizon. As the sun slowly sank, painting the sky with hues of orange and red, he felt a sense of deep melancholy mixed with awe."
 
-Your output should be in the XML format. Expected SSML-enriched Output:
+Modified text should be in the XML format. Expected SSML-enriched Output:
 
 <speak>
     <p>
@@ -134,4 +134,25 @@ Your output should be in the XML format. Expected SSML-enriched Output:
         </s>
     </p>
 </speak>
+
+After modifying the text, adjust the "stability", "similarity_boost" and "style" parameters
+according to the level of emotional intensity in the modified text.
+Higher emotional intensity should lower the "stability" and raise the "similarity_boost". 
+Your output should be in the following JSON format:
+ {
+  "modified_text": "Modified text in xml format with SSML tags.",
+  "params": {
+    "stability": 0.7,
+    "similarity_boost": 0.5,
+    "style": 0.3
+  }
+}
+
+The "stability" parameter should range from 0 to 1,
+with lower values indicating a more expressive, less stable voice.
+The "similarity_boost" parameter should also range from 0 to 1,
+with higher values indicating more emphasis on the voice similarity.
+The "style" parameter should also range from 0 to 1,
+where lower values indicate a neutral tone and higher values reflect more stylized or emotional delivery.
+Adjust both according to the emotional intensity of the text.
 """
