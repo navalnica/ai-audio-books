@@ -89,7 +89,7 @@ class EffectGeneratorAsync(AbstractEffectGenerator):
     def __init__(self, api_key: str, predict_duration: bool = True, model_type: str = 'gpt-4o'):
         self.client = openai.AsyncOpenAI(api_key=api_key)
         self.sound_effect_prompt = SOUND_EFFECT_GENERATION if predict_duration else SOUND_EFFECT_GENERATION_WITHOUT_DURATION_PREDICTION
-        self.text_modification_prompt = TEXT_MODIFICATION
+        self.text_modification_prompt = TEXT_MODIFICATION_WITH_SSML
         self.model_type = model_type
 
     async def generate_text_for_sound_effect(self, text: str) -> dict:
