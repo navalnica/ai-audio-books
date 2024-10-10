@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import List
 
 import gradio as gr
 from dotenv import load_dotenv
@@ -9,6 +10,14 @@ load_dotenv()
 
 from src.builder import AudiobookBuilder
 from src.config import logger, FILE_SIZE_MAX
+
+
+def get_auth_params() -> List[tuple[str, str]]:
+    users = os.environ["AUTH_USERS"].split(",")
+    passwords = os.environ["AUTH_PASS"].split(",")
+
+    auth_list = [(u, passwords[0] if len(passwords) == 1 else p) for u, p in zip(users, passwords)]
+    return auth_list
 
 
 def parse_pdf(file_path):
@@ -112,4 +121,4 @@ with gr.Blocks(title="Audiobooks Generation") as ui:
         outputs=error_output,
     )
 
-ui.launch()
+ui.launch(auth=get_auth_params())
