@@ -1,4 +1,3 @@
-import pandas as pd
 from langchain_community.callbacks import get_openai_callback
 
 from src.audio_generators import AudioGeneratorSimple

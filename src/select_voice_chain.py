@@ -1,18 +1,18 @@
-from collections import Counter
+from enum import StrEnum
+
 import pandas as pd
+from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import (
     ChatPromptTemplate,
     HumanMessagePromptTemplate,
     SystemMessagePromptTemplate,
 )
-from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from pydantic import BaseModel
-from enum import StrEnum
 
+from src.config import logger
 from src.prompts import CharacterVoicePropertiesPrompt
 from src.utils import GPTModels, get_chat_llm
-from src.config import logger
 
 
 class Property(StrEnum):
@@ -84,7 +84,9 @@ class VoiceSelector:
         voice_ids = df_filtered.sample(n_characters)["voice_id"].to_list()
         return voice_ids
 
-    def get_voices(self, character_props: AllCharactersPropertiesNullable) -> dict:
+    def get_voices(self, inputs: dict) -> dict:
+        character_props: AllCharactersPropertiesNullable = inputs["charater_props"]
+
         # check for Nones.
         # TODO: for simplicity we raise error if LLM failed to select valid property value.
         # else, we would need to implement clever mapping to avoid overlapping between voices.

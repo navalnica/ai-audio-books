@@ -12,3 +12,5 @@ ELEVENLABS_API_KEY = os.environ["11LABS_API_KEY"]
 AI_ML_API_KEY = os.environ["AIML_API_KEY"]
 
 FILE_SIZE_MAX = 0.5  # in mb
+
+ELEVENLABS_MAX_PARALLEL = 15  # current limitation of available subscription

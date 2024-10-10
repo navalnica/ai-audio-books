@@ -1,6 +1,9 @@
 __pycache__
-data/books
-.env
+.vscode
 venv
 .python-version
 .DS_Store
+
+data/books
+
+.env

@@ -13,7 +13,7 @@ from src.tts import tts_astream, sound_generation_astream
 from src.utils import consume_aiter
 from src.emotions.generation import EffectGeneratorAsync
 from src.emotions.utils import add_overlay_for_audio
-from src.config import AI_ML_API_KEY
+from src.config import AI_ML_API_KEY, ELEVENLABS_MAX_PARALLEL, logger
 from src.text_split_chain import SplitTextOutput
 
 
@@ -24,22 +24,35 @@ class AudioGeneratorSimple:
         text_split: SplitTextOutput,
         character_to_voice: dict[str, str],
     ) -> Path:
+        semaphore = asyncio.Semaphore(ELEVENLABS_MAX_PARALLEL)
+
+        async def tts_astream_with_semaphore(voice_id: str, text: str):
+            async with semaphore:
+                iter_ = tts_astream(voice_id=voice_id, text=text)
+                bytes_ = await consume_aiter(iter_)
+                return bytes_
+
         tasks = []
         for character_phrase in text_split.phrases:
             voice_id = character_to_voice[character_phrase.character]
-            tasks.append(tts_astream(voice_id=voice_id, text=character_phrase.text))
+            task = tts_astream_with_semaphore(
+                voice_id=voice_id, text=character_phrase.text
+            )
+            tasks.append(task)
 
-        results = await asyncio.gather(*(consume_aiter(t) for t in tasks))
+        results = await asyncio.gather(*tasks)
+
         save_dir = Path("data") / "books"
         save_dir.mkdir(exist_ok=True)
-        save_path = save_dir / f"{uuid4()}.wav"
+        audio_combined_fp = save_dir / f"{uuid4()}.wav"
 
-        with open(save_path, "wb") as ab:
+        logger.info(f'saving generated audio book to: "{audio_combined_fp}"')
+        with open(audio_combined_fp, "wb") as ab:
             for result in results:
                 for chunk in result:
                     ab.write(chunk)
 
-        return save_path
+        return audio_combined_fp
 
 
 class AudioGeneratorWithEffects:
