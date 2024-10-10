@@ -13,8 +13,7 @@ from src.tts import tts_astream, sound_generation_astream
 from src.utils import consume_aiter
 from src.emotions.generation import EffectGeneratorAsync
 from src.emotions.utils import add_overlay_for_audio
-
-api_key = os.getenv("AIML_API_KEY")
+from src.config import AI_ML_API_KEY
 
 
 class AudioGeneratorSimple:
@@ -54,7 +53,7 @@ class AudioGeneratorSimple:
 class AudioGeneratorWithEffects:
 
     def __init__(self):
-        self.effect_generator = EffectGeneratorAsync(api_key)
+        self.effect_generator = EffectGeneratorAsync(AI_ML_API_KEY)
 
     async def generate_audio_with_text_modification(
         self,

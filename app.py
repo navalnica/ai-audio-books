@@ -8,10 +8,7 @@ from langchain_community.document_loaders import PyPDFLoader
 load_dotenv()
 
 from src.builder import AudiobookBuilder
-from src.config import logger
-
-api_key = os.getenv("AIML_API_KEY")
-FILE_SIZE_MAX = 0.5  # in mb
+from src.config import logger, FILE_SIZE_MAX
 
 
 def parse_pdf(file_path):

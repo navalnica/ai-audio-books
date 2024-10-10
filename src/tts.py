@@ -1,4 +1,3 @@
-import os
 import typing as t
 
 from dotenv import load_dotenv
@@ -7,11 +6,11 @@ from elevenlabs import VoiceSettings
 
 load_dotenv()
 
-from src.config import logger
+from src.config import logger, ELEVENLABS_API_KEY
 
-ELEVEN_CLIENT = ElevenLabs(api_key=os.getenv("11LABS_API_KEY"))
+ELEVEN_CLIENT = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 
-ELEVEN_CLIENT_ASYNC = AsyncElevenLabs(api_key=os.getenv("11LABS_API_KEY"))
+ELEVEN_CLIENT_ASYNC = AsyncElevenLabs(api_key=ELEVENLABS_API_KEY)
 
 
 def tts_stream(voice_id: str, text: str) -> t.Iterator[bytes]:
