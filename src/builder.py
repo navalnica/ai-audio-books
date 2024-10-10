@@ -46,9 +46,8 @@ class AudiobookBuilder:
             text_split=text_split
         )
         # TODO: show select_voice_chain_out.character2props on UI
-        # TODO: make function below support current inputs
-        out_path = self.audio_generator.generate_audio(
-            annotated_text=text_split,
+        out_path = await self.audio_generator.generate_audio(
+            text_split=text_split,
             character_to_voice=select_voice_chain_out.character2voice,
         )
         return out_path

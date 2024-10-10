@@ -14,28 +14,20 @@ from src.utils import consume_aiter
 from src.emotions.generation import EffectGeneratorAsync
 from src.emotions.utils import add_overlay_for_audio
 from src.config import AI_ML_API_KEY
+from src.text_split_chain import SplitTextOutput
 
 
 class AudioGeneratorSimple:
 
     async def generate_audio(
         self,
-        annotated_text: str,
+        text_split: SplitTextOutput,
         character_to_voice: dict[str, str],
     ) -> Path:
         tasks = []
-        current_character = "narrator"
-        for line in annotated_text.splitlines():
-            cleaned_line = line.strip().lower()
-            if not cleaned_line:
-                continue
-            try:
-                current_character = re.findall(r"\[[\w\s]+\]", cleaned_line)[0][1:-1]
-            except:
-                pass
-            voice_id = character_to_voice[current_character]
-            character_text = cleaned_line[cleaned_line.rfind("]") + 1 :].lstrip()
-            tasks.append(tts_astream(voice_id=voice_id, text=character_text))
+        for character_phrase in text_split.phrases:
+            voice_id = character_to_voice[character_phrase.character]
+            tasks.append(tts_astream(voice_id=voice_id, text=character_phrase.text))
 
         results = await asyncio.gather(*(consume_aiter(t) for t in tasks))
         save_dir = Path("data") / "books"
