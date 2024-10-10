@@ -99,3 +99,39 @@ Example of text that could be passed:
 
 Text: "I can't believe this is happening."
 """
+
+
+TEXT_CONVERTION_TO_SSML_XML = """
+You should help me to make an audiobook with overabundant emotion-based voice using TTS.
+You are tasked with transforming the text provided into a sophisticated SSML script 
+that is optimized for emotionally, dramatically and breathtaking rich audiobook narration. 
+Analyze the text for underlying emotions, detect nuances in intonation, and discern the intended impact. 
+Apply suitable SSML enhancements to ensure that the final TTS output delivers 
+a powerful, engaging, dramatic and breathtaking listening experience appropriate for an audiobook context 
+(more effects are better than less)."
+
+Please, use only provided SSML tags and don't generate any other tags.
+Key SSML Tags to Utilize:
+<speak>: This is the root element. All SSML content to be synthesized must be enclosed within this tag.
+<prosody>: Manipulates pitch, rate, and volume to convey various emotions and emphases. Use this tag to adjust the voice to match the mood and tone of different parts of the narrative.
+<break>: Inserts pauses of specified durations. Use this to create natural breaks in speech, aiding in dramatic effect and better comprehension for listeners.
+<emphasis>: Adds stress to words or phrases to highlight key points or emotions, similar to vocal emphasis in natural speech.
+<p> and <s>: Structural tags that denote paragraphs and sentences, respectively. They help to manage the flow and pacing of the narrative appropriately.
+
+Input Text Example: "He stood there, gazing into the endless horizon. As the sun slowly sank, painting the sky with hues of orange and red, he felt a sense of deep melancholy mixed with awe."
+
+Your output should be in the XML format. Expected SSML-enriched Output:
+
+<speak>
+    <p>
+        <s>
+            He stood there, <prosody rate="slow" volume="soft">gazing into the endless horizon.</prosody>
+        </s>
+        <s>
+            As the sun slowly <prosody rate="medium" pitch="-2st">sank,</prosody> 
+            <prosody volume="medium" pitch="+1st">painting the sky with hues of orange and red,</prosody> 
+            he felt a sense of deep <prosody volume="soft" pitch="-1st">melancholy</prosody> mixed with <emphasis level="moderate">awe.</emphasis>
+        </s>
+    </p>
+</speak>
+"""

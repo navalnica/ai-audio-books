@@ -3,7 +3,8 @@ import json
 from requests import HTTPError
 from abc import ABC, abstractmethod
 
-from .prompts import SOUND_EFFECT_GENERATION, SOUND_EFFECT_GENERATION_WITHOUT_DURATION_PREDICTION, TEXT_MODIFICATION
+from .prompts import SOUND_EFFECT_GENERATION, SOUND_EFFECT_GENERATION_WITHOUT_DURATION_PREDICTION, \
+    TEXT_MODIFICATION, TEXT_CONVERTION_TO_SSML_XML
 from .utils import get_audio_duration
 from src.config import logger
 
@@ -25,7 +26,7 @@ class EffectGenerator(AbstractEffectGenerator):
     def __init__(self, api_key: str, predict_duration: bool = True, model_type: str = 'gpt-4o'):
         self.client = openai.OpenAI(api_key=api_key)
         self.sound_effect_prompt = SOUND_EFFECT_GENERATION if predict_duration else SOUND_EFFECT_GENERATION_WITHOUT_DURATION_PREDICTION
-        self.text_modification_prompt = TEXT_MODIFICATION
+        self.text_modification_prompt = TEXT_CONVERTION_TO_SSML_XML
         self.model_type = model_type
         logger.info(f"EffectGenerator initialized with model_type: {model_type}, predict_duration: {predict_duration}")
 
