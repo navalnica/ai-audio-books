@@ -11,32 +11,22 @@ python_version: 3.11
 ---
 
 ### Action items
-- [ ] move speaker split to new pipeline
-- [ ] env template
-- [ ] move from AI/ML api to langchain
-- [ ] bugfix w/ 11labs api
-- [ ] async synthesis
-- [ ] map characters to voices
-- [] emotion enrichment: add intonation markers, auto-set TTS params
-- [x] generate good enough sound effects for background
-- [ ] mix effects with narrration
-- [x] allow files uplaod (.txt)
+- check new set of voices
+- intonations
+    - add context 
+- audio effects
+    - add context
+    - filter, apply only for long phrases
+    - only for narrator?
+    - checkbox! make effects great again (no) optional
+- limit on input text size
+- fix UI
+- slides / story
 - optimizations
-    - [ ] combine sequential phrases of same character in single phrase
-    - [ ] support large texts. use batching. problem: how to ensure same characters?
-can detect characters in first prompt, then split text in each batch into character phrases
-    - [ ] probably split large phrases into smaller ones
-
-### Backlog
-- [ ] prepare text for TTS
-    - [x] prepare prompt to split text into character phrases
-    - [ ] split large text in batches, process each batch separatelly, concat batches
-    - [ ] try to identify unknown characters
-- [ ] select voices for TTS
-    - [ ] map characters to available voices
-    - [ ] use LLM to recognize characters for a given text and provide descriptions
-detailed enough to select appropriate voice
-- [ ] preprocess text phrases for TTS: add intonation markers, auto-set TTS params
-- [ ] run TTS to create narration
-- [ ] add effects. mix them with created narration
+    - combine sequential phrases of same character in single phrase
+    - support large texts. use batching. problem: how to ensure same characters?
+- can detect characters in first prompt, then split text in each batch into character phrases
+    - probably split large phrases into smaller ones
+    - identify unknown characters
+    - use LLM to recognize characters for a given text and provide descriptions detailed enough to select appropriate voice
 
