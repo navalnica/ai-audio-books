@@ -112,6 +112,7 @@ Only alter the presentation of the existing words.
 Each part/phrase of text will be enriched by this approach, so analyze the context thoroughly. 
 
 Also you can add pause in the output text if it needed 
+Add more pauses than less because that's audiobook and speedy scoring is unacceptable 
 The most consistent way is programmatically using the syntax <break time="1.5s" />. or any time in second if it fit to the text
 This will create an exact and natural pause in the speech.
 It is not just added silence between words,
