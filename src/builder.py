@@ -9,10 +9,8 @@ from src.utils import GPTModels
 
 class AudiobookBuilder:
 
-    def __init__(self) -> None:
-        self.voice_selector = VoiceSelector(
-            csv_table_fp="data/11labs_available_tts_voices.csv"
-        )
+    def __init__(self):
+        self.voice_selector = VoiceSelector()
         self.audio_generator = AudioGeneratorWithEffects()
 
     async def split_text(self, text: str) -> SplitTextOutput:

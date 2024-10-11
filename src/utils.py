@@ -28,7 +28,7 @@ async def consume_aiter(aiterator):
 
 def auto_retry(f):
     decorator = retry(
-        wait=wait_random_exponential(min=1, max=5),
-        stop=stop_after_attempt(6),
+        wait=wait_random_exponential(min=2, max=6),
+        stop=stop_after_attempt(10),
     )
     return decorator(f)

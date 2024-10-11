@@ -7,6 +7,7 @@ from elevenlabs import VoiceSettings
 load_dotenv()
 
 from src.config import logger, ELEVENLABS_API_KEY
+from src.utils import auto_retry
 
 ELEVEN_CLIENT = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 
@@ -43,6 +44,14 @@ async def tts_astream(
     async for chunk in async_iter:
         if chunk:
             yield chunk
+
+
+@auto_retry
+async def tts_astream_consumed(
+    voice_id: str, text: str, params: dict | None = None
+) -> list[bytes]:
+    aiterator = tts_astream(voice_id=voice_id, text=text, params=params)
+    return [x async for x in aiterator]
 
 
 async def sound_generation_astream(
