@@ -172,12 +172,15 @@ class EffectGeneratorAsync(AbstractEffectGenerator):
         return llm_output
 
     @auto_retry
-    async def add_emotion_to_text(self, text: str) -> dict:
+    async def add_emotion_to_text(self, text: str, text_before: str, text_after: str) -> dict:
+        text_to_prompt = f'*** Text to modify: {text} /n' \
+                         f'*** Text before it: {text_before} /n' \
+                         f'*** Text after it: {text_after}'
         completion = await self.client.chat.completions.create(
             model=self.model_type,
             messages=[
                 {"role": "system", "content": self.text_modification_prompt},
-                {"role": "user", "content": text},
+                {"role": "user", "content": text_to_prompt},
             ],
             response_format={"type": "json_object"},
         )

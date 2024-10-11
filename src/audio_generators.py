@@ -110,9 +110,12 @@ class AudioGeneratorWithEffects:
         for idx, character_phrase in enumerate(text_split.phrases):
             character_text = character_phrase.text.strip().lower()
 
+            text_before = ' '.join([phrase.text for phrase in text_split.phrases[idx-6: idx]])
+            text_before = text_before[len(text_before)-1000:]
+            text_after = ' '.join([phrase.text for phrase in text_split.phrases[idx+1: idx+6]])[:1000]
             # Add text emotion modification task
             tasks_for_text_modification.append(
-                self.effect_generator.add_emotion_to_text(character_text)
+                self.effect_generator.add_emotion_to_text(character_text, text_before, text_after)
             )
 
             # If this line needs sound effects, generate parameters
