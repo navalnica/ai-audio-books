@@ -74,7 +74,7 @@ with gr.Blocks(title="Audiobooks Generation") as ui:
     gr.Markdown(DESCRIPTION)
 
     with gr.Row(variant="panel"):
-        text_input = gr.Textbox(label="Enter the book text here", lines=20)
+        text_input = gr.Textbox(label="Enter the book text here", lines=15)
         file_input = gr.File(
             label="Upload a text file or PDF",
             file_types=[".txt", ".pdf"],
@@ -91,10 +91,10 @@ with gr.Blocks(title="Audiobooks Generation") as ui:
         inputs=text_input,
         label="Sample Inputs",
         example_labels=[
-            "Gatsby 1",
-            "Gatsby 2",
-            "Wonderful Christmas 1",
-            "Wonderful Christmas 2",
+            "The Great Gatsby, #1",
+            "The Great Gatsby, #2",
+            "The Wonderful Christmas in Pumpkin Delight Lane, #1",
+            "The Wonderful Christmas in Pumpkin Delight Lane, #2",
         ],
     )
 
@@ -105,7 +105,11 @@ with gr.Blocks(title="Audiobooks Generation") as ui:
     # error output is hidden initially
     error_output = gr.Textbox(label="Error Message", interactive=False, visible=False)
 
-    effects_generation_checkbox = gr.Checkbox(label="Add background effects")
+    effects_generation_checkbox = gr.Checkbox(
+        label="Add background effects",
+        value=False,
+        info="Select if you want to add occasional sound effect to the audiobook",
+    )
 
     with gr.Row(variant="panel"):
         submit_button = gr.Button("Generate the audiobook", variant="primary")

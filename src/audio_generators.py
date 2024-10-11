@@ -61,7 +61,7 @@ class AudioGeneratorSimple:
 class AudioGeneratorWithEffects:
 
     def __init__(self):
-        self.effect_generator = EffectGeneratorAsync()
+        self.effect_generator = EffectGeneratorAsync(predict_duration=True)
         self.semaphore = asyncio.Semaphore(ELEVENLABS_MAX_PARALLEL)
         self.temp_files = []
 

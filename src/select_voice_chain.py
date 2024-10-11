@@ -67,7 +67,10 @@ class VoiceSelector:
 
         if "manual_quality_review" in df.columns:
             logger.info('filtering df by "manual_quality_review" column')
-            ix_to_drop = df[df["manual_quality_review"].isin(["very bad"])].index
+
+            # ix_to_drop = df[df["manual_quality_review"].isin(["very bad"])].index
+            ix_to_drop = df[df["manual_quality_review"].isin(["very bad", "bad"])].index
+
             df.drop(index=ix_to_drop, inplace=True)
             logger.info(f"df.shape after filtering voices: {df.shape}")
 

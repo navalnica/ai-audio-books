@@ -1,11 +1,14 @@
-SOUND_EFFECT_GENERATION = """
+PREFIX = """\
 You should help me to make an audiobook with realistic emotion sound using TTS.
 You are tasked with generating a description of sound effects
 that matches the atmosphere, actions, and tone of a given sentence or text from a book.
 The description should be tailored to create a sound effect using ElevenLabs'sound generation API.
 The generated sound description must evoke the scene
 or emotions from the text (e.g., footsteps, wind, tense silence, etc.),
-and it should be succinct and fit the mood of the text.
+and it should be succinct and fit the mood of the text."""
+
+SOUND_EFFECT_GENERATION = f"""
+{PREFIX}
 
 Additionally, you should include the following parameters in your response:
 
@@ -23,22 +26,24 @@ Additionally, you should include the following parameters in your response:
 
 Your output should be in the following JSON format:
 
-{
+{{
   "text": "A soft breeze rustling through leaves, distant birds chirping.",
   "duration_seconds": 4.0,
   "prompt_influence": 0.4
-}
+}}
 
+NOTES:
+- NEVER add any speech or voices in your instructions!
+- NEVER add any music in your instructions!
+- NEVER add city sounds, car honks in your instructions!
+- make your text descriptions VERY SPECIFIC, AVOID vague instructions.
+If it's necessary, you can use couple sentences to formulate the instruction.
+But remember to use keep instructions simple.
+- aim to create specific sounds, like crackling fireplace, footsteps, wind, etc...
 """
 
-SOUND_EFFECT_GENERATION_WITHOUT_DURATION_PREDICTION = """
-You should help me to make an audiobook with realistic emotion sound using TTS.
-You are tasked with generating a description of sound effects
-that matches the atmosphere, actions, and tone of a given sentence or text from a book.
-The description should be tailored to create a sound effect using ElevenLabs'sound generation API.
-The generated sound description must evoke the scene
-or emotions from the text (e.g., footsteps, wind, tense silence, etc.),
-and it should be succinct and fit the mood of the text.
+SOUND_EFFECT_GENERATION_WITHOUT_DURATION_PREDICTION = f"""
+{PREFIX}
 
 Additionally, you should include the following parameters in your response:
 
@@ -52,12 +57,10 @@ Additionally, you should include the following parameters in your response:
 
 Your output should be in the following JSON format:
 
-{
+{{
   "text": "A soft breeze rustling through leaves, distant birds chirping.",
   "prompt_influence": 0.4
-}
-
-"""
+}}"""
 
 TEXT_MODIFICATION = """
 You should help me to make an audiobook with realistic emotion-based voice using TTS.

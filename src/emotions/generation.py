@@ -125,7 +125,7 @@ class AbstractEffectGenerator(ABC):
 
 
 class EffectGeneratorAsync(AbstractEffectGenerator):
-    def __init__(self, predict_duration: bool = True, model_type: str = "gpt-4o"):
+    def __init__(self, predict_duration: bool, model_type: str = "gpt-4o"):
         self.client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY)
         self.sound_effect_prompt = (
             SOUND_EFFECT_GENERATION
