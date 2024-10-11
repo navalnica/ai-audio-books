@@ -10,22 +10,15 @@ pinned: false
 python_version: 3.11
 ---
 
-### Action items
+### Action Items / Ideas
 
-- voices
-    - filter to use only best voices
 - intonations
-    - add context 
+    - add context
 - audio effects
     - add context
     - filter, apply only for long phrases
-    - only for narrator?
-- stability
-    - add limit on input text size (5000 chars)
 - improve UI
-    - add error box
     - show character parts
-- prepare slides / story
 - testing
     - eval current execution time
 - optimizations

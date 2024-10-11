@@ -68,6 +68,8 @@ class VoiceSelector:
         if "manual_quality_review" in df.columns:
             logger.info('filtering df by "manual_quality_review" column')
 
+            # TODO: may need to use clever sampling, since we limit number of voices available.
+            # some property groups have small number of voices left.
             # ix_to_drop = df[df["manual_quality_review"].isin(["very bad"])].index
             ix_to_drop = df[df["manual_quality_review"].isin(["very bad", "bad"])].index
 

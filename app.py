@@ -58,11 +58,17 @@ async def respond(
             logger.exception(e)
             return (None, str(e))
 
-    if len(text) > MAX_TEXT_LEN:
-        raise ValueError(len(text))  # TODO
+    if (text_len := len(text)) > MAX_TEXT_LEN:
+        gr.Warning(
+            f"Input text length of {text_len} characters "
+            f"exceeded current limit of {MAX_TEXT_LEN} characters. "
+            "Please input a shorter text."
+        )
+        return None, ""
 
     builder = AudiobookBuilder()
     audio_fp = await builder.run(text=text, generate_effects=generate_effects)
+
     return audio_fp, ""
 
 
