@@ -1,3 +1,14 @@
+---
+title: ai-audio-books
+emoji: 📕👨‍💻🎧
+colorFrom: blue
+colorTo: gray
+sdk: gradio
+sdk_version: 4.44.1
+app_file: app.py
+pinned: false
+---
+
 ### Action items
 - [ ] move speaker split to new pipeline
 - [ ] env template
