@@ -18,29 +18,53 @@ load_dotenv()
 
 
 @click.command()
-@click.option("-ak", "--api-key", envvar="11LABS_API_KEY")
+@click.option("-ak", "--api-key", envvar="ELEVEN_LABS_API_KEY")
 @click.option("-o", "--output-csv-path", default="data/11labs_available_tts_voices.csv")
 def main(*, api_key: str | None, output_csv_path: str) -> None:
     if api_key is None:
-        raise OSError("Who's gonna set the `11LABS_API_KEY` environmental variable?")
-    
+        raise OSError(
+            "Who's gonna set the `ELEVEN_LABS_API_KEY` environmental variable?"
+        )
+
     client = ElevenLabs(api_key=api_key)
     response = client.voices.get_all()
-    available_voices = pd.DataFrame.from_records([voice.model_dump(
-        include={
-            "voice_id", "name", "language", "labels", "description", "preview_url",
-        },
-    ) for voice in response.voices])
-    available_voices = pd.concat((
-        available_voices.drop(columns=[
-            "labels", "description", "available_for_tiers", "settings", "sharing",
-            "high_quality_base_model_ids", "safety_control", "voice_verification",
-            "category", "samples",
-        ]),
-        pd.DataFrame.from_records(available_voices["labels"]).rename(
-            columns={"use_case": "category"}
+    available_voices = pd.DataFrame.from_records(
+        [
+            voice.model_dump(
+                include={
+                    "voice_id",
+                    "name",
+                    "language",
+                    "labels",
+                    "description",
+                    "preview_url",
+                },
+            )
+            for voice in response.voices
+        ]
+    )
+    available_voices = pd.concat(
+        (
+            available_voices.drop(
+                columns=[
+                    "labels",
+                    "description",
+                    "available_for_tiers",
+                    "settings",
+                    "sharing",
+                    "high_quality_base_model_ids",
+                    "safety_control",
+                    "voice_verification",
+                    "category",
+                    "samples",
+                ]
+            ),
+            pd.DataFrame.from_records(available_voices["labels"]).rename(
+                columns={"use_case": "category"}
+            ),
         ),
-    ), axis=1)
+        axis=1,
+    )
 
     available_voices.drop(columns="fine_tuning").to_csv(output_csv_path, index=False)
 

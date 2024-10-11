@@ -19,12 +19,14 @@ load_dotenv()
 
 
 @click.command()
-@click.option("-ak", "--api-key", envvar="11LABS_API_KEY")
+@click.option("-ak", "--api-key", envvar="ELEVEN_LABS_API_KEY")
 @click.option("-i", "--input-csv-path", default="data/11labs_tts_voices.csv")
 def main(*, api_key: str | None, input_csv_path: str) -> None:
     if api_key is None:
-        raise OSError("Who's gonna set the `11LABS_API_KEY` environmental variable?")
-    
+        raise OSError(
+            "Who's gonna set the `ELEVEN_LABS_API_KEY` environmental variable?"
+        )
+
     client = ElevenLabs(api_key=api_key)
     voices_to_import = pd.read_csv(input_csv_path)
 
