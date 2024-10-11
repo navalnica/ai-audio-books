@@ -10,7 +10,7 @@ from pydub import AudioSegment
 
 from src.lc_callbacks import LCMessageLoggerAsync
 from src.tts import tts_astream, sound_generation_astream
-from src.utils import consume_aiter
+from src.utils import auto_retry, consume_aiter
 from src.emotions.generation import EffectGeneratorAsync
 from src.emotions.utils import add_overlay_for_audio
 from src.config import ELEVENLABS_MAX_PARALLEL, logger
@@ -66,6 +66,7 @@ class AudioGeneratorWithEffects:
         self,
         text_split: SplitTextOutput,
         character_to_voice: dict[str, str],
+        out_path: Path | None = None,
     ) -> Path:
         """Main method to generate the audiobook with TTS, emotion, and sound effects."""
         num_lines = len(text_split.phrases)
@@ -87,10 +88,8 @@ class AudioGeneratorWithEffects:
         )
 
         # Step 4: Merge audio files
-        normalized_audio_chunks = self._normalize_audio_chunks(
-            audio_chunks, self.temp_files
-        )
-        final_output = self._merge_audio_files(normalized_audio_chunks)
+        normalized_audio_chunks = self._normalize_audio_chunks(audio_chunks, self.temp_files)
+        final_output = self._merge_audio_files(normalized_audio_chunks, save_path=out_path)
 
         # Clean up temporary files
         self._cleanup_temp_files(self.temp_files)
@@ -236,16 +235,17 @@ class AudioGeneratorWithEffects:
 
         return normalized_files
 
-    def _merge_audio_files(self, audio_filenames: list[str]) -> Path:
+    def _merge_audio_files(self, audio_filenames: list[str], save_path: Path | None = None) -> Path:
         """Helper function to merge multiple audio files into one."""
         combined = AudioSegment.from_file(audio_filenames[0])
         for filename in audio_filenames[1:]:
             next_audio = AudioSegment.from_file(filename)
             combined += next_audio  # Concatenate the audio
 
-        save_dir = Path("data") / "books"
-        save_dir.mkdir(exist_ok=True)
-        save_path = save_dir / f"{uuid4()}.wav"
+        if save_path is None:
+            save_dir = Path("data") / "books"
+            save_dir.mkdir(exist_ok=True)
+            save_path = save_dir / f"{uuid4()}.wav"
         combined.export(save_path, format="wav")
         return Path(save_path)
 
