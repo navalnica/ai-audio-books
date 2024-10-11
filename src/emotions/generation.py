@@ -8,6 +8,7 @@ from .prompts import (
     SOUND_EFFECT_GENERATION_WITHOUT_DURATION_PREDICTION,
     TEXT_MODIFICATION,
     TEXT_MODIFICATION_WITH_SSML,
+    TEXT_MODIFICATION_WITH_CONTEXT
 )
 from .utils import get_audio_duration
 from src.config import logger
@@ -121,7 +122,7 @@ class EffectGeneratorAsync(AbstractEffectGenerator):
             if predict_duration
             else SOUND_EFFECT_GENERATION_WITHOUT_DURATION_PREDICTION
         )
-        self.text_modification_prompt = TEXT_MODIFICATION_WITH_SSML
+        self.text_modification_prompt = TEXT_MODIFICATION_WITH_CONTEXT
         self.model_type = model_type
 
     @auto_retry
