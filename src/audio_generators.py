@@ -13,7 +13,7 @@ from src.tts import tts_astream, sound_generation_astream
 from src.utils import consume_aiter
 from src.emotions.generation import EffectGeneratorAsync
 from src.emotions.utils import add_overlay_for_audio
-from src.config import AI_ML_API_KEY, ELEVENLABS_MAX_PARALLEL, logger
+from src.config import ELEVENLABS_MAX_PARALLEL, logger
 from src.text_split_chain import SplitTextOutput
 
 
@@ -58,7 +58,7 @@ class AudioGeneratorSimple:
 class AudioGeneratorWithEffects:
 
     def __init__(self):
-        self.effect_generator = EffectGeneratorAsync(AI_ML_API_KEY)
+        self.effect_generator = EffectGeneratorAsync()
         self.semaphore = asyncio.Semaphore(ELEVENLABS_MAX_PARALLEL)
         self.temp_files = []
 
@@ -87,7 +87,9 @@ class AudioGeneratorWithEffects:
         )
 
         # Step 4: Merge audio files
-        normalized_audio_chunks = self._normalize_audio_chunks(audio_chunks, self.temp_files)
+        normalized_audio_chunks = self._normalize_audio_chunks(
+            audio_chunks, self.temp_files
+        )
         final_output = self._merge_audio_files(normalized_audio_chunks)
 
         # Clean up temporary files
@@ -184,11 +186,14 @@ class AudioGeneratorWithEffects:
         for idx, tts_filename in enumerate(tts_audio_files):
             # If the line has sound emotion data, generate sound effect and overlay
             if idx in lines_for_sound_effect:
-                sound_effect_data = sound_emotion_results.pop(0)  # Get next sound effect data
+                # Get next sound effect data
+                sound_effect_data = sound_emotion_results.pop(0)
                 sound_effect_filename = f"sound_effect_{idx}.wav"
 
                 # Generate sound effect asynchronously
-                sound_result = await consume_aiter(sound_generation_astream(sound_effect_data))
+                sound_result = await consume_aiter(
+                    sound_generation_astream(sound_effect_data)
+                )
                 with open(sound_effect_filename, "wb") as ab:
                     for chunk in sound_result:
                         ab.write(chunk)
@@ -208,12 +213,16 @@ class AudioGeneratorWithEffects:
 
         return audio_chunks
 
-    def _normalize_audio(self, audio_segment: AudioSegment, target_dBFS: float = -20.0) -> AudioSegment:
+    def _normalize_audio(
+        self, audio_segment: AudioSegment, target_dBFS: float = -20.0
+    ) -> AudioSegment:
         """Normalize an audio segment to the target dBFS level."""
         change_in_dBFS = target_dBFS - audio_segment.dBFS
         return audio_segment.apply_gain(change_in_dBFS)
 
-    def _normalize_audio_chunks(self, audio_filenames: list[str], temp_files, target_dBFS: float = -20.0) -> list[str]:
+    def _normalize_audio_chunks(
+        self, audio_filenames: list[str], temp_files, target_dBFS: float = -20.0
+    ) -> list[str]:
         """Normalize all audio chunks to the target volume level."""
         normalized_files = []
         for audio_file in audio_filenames:

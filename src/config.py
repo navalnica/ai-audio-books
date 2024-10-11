@@ -7,9 +7,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger("audio-books")
 
-
+OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 ELEVENLABS_API_KEY = os.environ["ELEVEN_LABS_API_KEY"]
-AI_ML_API_KEY = os.environ["AIML_API_KEY"]
 
 FILE_SIZE_MAX = 0.5  # in mb
 
