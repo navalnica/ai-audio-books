@@ -1,7 +1,11 @@
-import openai
 import json
-from requests import HTTPError
 from abc import ABC, abstractmethod
+
+import openai
+from requests import HTTPError
+
+from src.config import OPENAI_API_KEY, logger
+from src.utils import auto_retry
 
 from .prompts import (
     SOUND_EFFECT_GENERATION,
@@ -10,8 +14,6 @@ from .prompts import (
     TEXT_MODIFICATION_WITH_SSML,
 )
 from .utils import get_audio_duration
-from src.config import logger
-from src.utils import auto_retry
 
 
 class AbstractEffectGenerator(ABC):
@@ -81,7 +83,9 @@ class EffectGenerator(AbstractEffectGenerator):
             raise RuntimeError(f"Unexpected Error: {e}")
 
     @auto_retry
-    def generate_parameters_for_sound_effect(self, text: str, generated_audio_file: str = None)-> dict:
+    def generate_parameters_for_sound_effect(
+        self, text: str, generated_audio_file: str = None
+    ) -> dict:
         llm_output = self.generate_text_for_sound_effect(text)
         if generated_audio_file is not None:
             llm_output["duration_seconds"] = get_audio_duration(generated_audio_file)
@@ -161,7 +165,9 @@ class EffectGeneratorAsync(AbstractEffectGenerator):
             raise RuntimeError(f"Unexpected Error: {e}")
 
     @auto_retry
-    async def generate_parameters_for_sound_effect(self, text: str, generated_audio_file: str = None) -> dict:
+    async def generate_parameters_for_sound_effect(
+        self, text: str, generated_audio_file: str = None
+    ) -> dict:
         llm_output = await self.generate_text_for_sound_effect(text)
         if generated_audio_file is not None:
             llm_output["duration_seconds"] = get_audio_duration(generated_audio_file)
