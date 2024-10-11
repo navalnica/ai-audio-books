@@ -157,17 +157,17 @@ Frank! why in the world don’t you come to dinner? There is a gentleman
 at table who came to see papa on business, and I ran away after the
 soup—I couldn’t eat my dinner one bit, without you.”
 
-“You’ll _have_ to, I reckon,” returned Frank; “a poor fellow, like me,
+“You’ll HAVE to, I reckon,” returned Frank; “a poor fellow, like me,
 who has to hoe corn all day, can’t stop to eat.”
 
 “O, Frank Hallock! _for shame!_” cried Kate, putting down her indignant
 foot without being able to make noise enough about it to disturb an
 earthworm.
 
-“It’s _true_,” responded Frank, pitching into the next hill with all his
+“It’s TRUE,” responded Frank, pitching into the next hill with all his
 might.
 
-“It is _not_ true,” cried Kate; “and if just running off to _look_ at
+“It is NOT true,” cried Kate; “and if just running off to LOOK at
 the circus pass by makes you say such things, I am glad you can’t go to
 see it.”\
 """

@@ -9,7 +9,8 @@ from langchain_community.document_loaders import PyPDFLoader
 load_dotenv()
 
 from src.builder import AudiobookBuilder
-from src.config import logger, FILE_SIZE_MAX
+from src.config import logger, FILE_SIZE_MAX, MAX_TEXT_LEN, DESCRIPTION
+from data import samples_to_split as samples
 
 
 def get_auth_params():
@@ -57,6 +58,9 @@ async def respond(
             logger.exception(e)
             return (None, str(e))
 
+    if len(text) > MAX_TEXT_LEN:
+        raise ValueError(len(text))  # TODO
+
     builder = AudiobookBuilder()
     audio_fp = await builder.run(text=text, generate_effects=generate_effects)
     return audio_fp, ""
@@ -67,34 +71,58 @@ def refresh():
 
 
 with gr.Blocks(title="Audiobooks Generation") as ui:
-    gr.Markdown("# Audiobooks Generation")
+    gr.Markdown(DESCRIPTION)
 
     with gr.Row(variant="panel"):
-        text_input = gr.Textbox(label="Enter the book text", lines=20)
-        # Add a file upload field for .txt and .pdf files
+        text_input = gr.Textbox(label="Enter the book text here", lines=20)
         file_input = gr.File(
-            label="Upload a text file or PDF", file_types=[".txt", ".pdf"]
+            label="Upload a text file or PDF",
+            file_types=[".txt", ".pdf"],
+            visible=False,
         )
 
+    examples = gr.Examples(
+        examples=[
+            [samples.GATSBY_1],
+            [samples.GATSBY_2],
+            [samples.WONDERFUL_CHRISTMAS_1],
+            [samples.WONDERFUL_CHRISTMAS_2],
+        ],
+        inputs=text_input,
+        label="Sample Inputs",
+        example_labels=[
+            "Gatsby 1",
+            "Gatsby 2",
+            "Wonderful Christmas 1",
+            "Wonderful Christmas 2",
+        ],
+    )
+
+    audio_output = gr.Audio(
+        label='Generated audio. Please wait for the waveform to appear, before hitting "Play"',
+        type="filepath",
+    )
+    # error output is hidden initially
+    error_output = gr.Textbox(label="Error Message", interactive=False, visible=False)
+
+    effects_generation_checkbox = gr.Checkbox(label="Add background effects")
+
     with gr.Row(variant="panel"):
-        audio_output = gr.Audio(label="Generated audio", type="filepath")
-        error_output = gr.Textbox(
-            label="Error Messages", interactive=False, visible=False
-        )  # Initially hidden
+        submit_button = gr.Button("Generate the audiobook", variant="primary")
+        refresh_button = gr.Button("Refresh", variant="secondary")
 
-    effects_generation_checkbox = gr.Checkbox(label="Generate background effects")
-
-    submit_button = gr.Button("Submit")
     submit_button.click(
         fn=respond,
-        inputs=[text_input, file_input, effects_generation_checkbox],  # Include the uploaded file as an input
+        inputs=[
+            text_input,
+            file_input,
+            effects_generation_checkbox,
+        ],  # Include the uploaded file as an input
         outputs=[
             audio_output,
             error_output,
         ],  # Include the audio output and error message output
     )
-
-    refresh_button = gr.Button("Refresh")
     refresh_button.click(
         fn=refresh,
         inputs=[],

@@ -9,8 +9,8 @@ from langchain_community.callbacks import get_openai_callback
 from pydub import AudioSegment
 
 from src.lc_callbacks import LCMessageLoggerAsync
-from src.tts import tts_astream_consumed, sound_generation_astream
-from src.utils import auto_retry, consume_aiter
+from src.tts import tts_astream_consumed, sound_generation_consumed
+from src.utils import consume_aiter
 from src.emotions.generation import (
     EffectGeneratorAsync,
     TextPreparationForTTSTaskOutput,
@@ -76,37 +76,38 @@ class AudioGeneratorWithEffects:
         """Main method to generate the audiobook with TTS, emotion, and sound effects."""
         num_lines = len(text_split.phrases)
         lines_for_sound_effect = self._select_lines_for_sound_effect(
-            num_lines, fraction=float(0.2 * generate_effects),
+            num_lines,
+            fraction=float(0.2 * generate_effects),
         )
         logger.info(f"{generate_effects = }, {lines_for_sound_effect = }")
 
-        modified_texts, sound_emotion_results = await self._prepare_text_for_tts(
+        data_for_tts, data_for_sound_effects = await self._prepare_text_for_tts(
             text_split, lines_for_sound_effect
         )
 
         tts_results, self.temp_files = await self._generate_tts_audio(
-            text_split, modified_texts, character_to_voice
+            text_split, data_for_tts, character_to_voice
         )
 
-        # Step 3: Add sound effects to selected lines
         audio_chunks = await self._add_sound_effects(
-            tts_results, lines_for_sound_effect, sound_emotion_results, self.temp_files
+            tts_results, lines_for_sound_effect, data_for_sound_effects, self.temp_files
         )
 
-        # Step 4: Merge audio files
         normalized_audio_chunks = self._normalize_audio_chunks(
             audio_chunks, self.temp_files
         )
+
         final_output = self._merge_audio_files(
             normalized_audio_chunks, save_path=out_path
         )
 
-        # Clean up temporary files
         self._cleanup_temp_files(self.temp_files)
 
         return final_output
 
-    def _select_lines_for_sound_effect(self, num_lines: int, fraction: float) -> list[int]:
+    def _select_lines_for_sound_effect(
+        self, num_lines: int, fraction: float
+    ) -> list[int]:
         """Select % of the lines randomly for sound effect generation."""
         return random.sample(range(num_lines), k=int(fraction * num_lines))
 
@@ -159,7 +160,7 @@ class AudioGeneratorWithEffects:
     async def _generate_tts_audio(
         self,
         text_split: SplitTextOutput,
-        modified_texts: list[dict],
+        data_for_tts: list[dict],
         character_to_voice: dict[str, str],
     ) -> tuple[list[str], list[str]]:
         """Generate TTS audio for modified text."""
@@ -174,20 +175,18 @@ class AudioGeneratorWithEffects:
                 # bytes_ = await consume_aiter(iter_)
                 return bytes_
 
-        for idx, (modified_text, character_phrase) in enumerate(
-            zip(modified_texts, text_split.phrases)
+        for idx, (data_item, character_phrase) in enumerate(
+            zip(data_for_tts, text_split.phrases)
         ):
             voice_id = character_to_voice[character_phrase.character]
 
-            # Use the semaphore-protected TTS function
             task = tts_astream_with_semaphore(
                 voice_id=voice_id,
-                text=modified_text["modified_text"],
-                params=modified_text["params"],
+                text=data_item["modified_text"],
+                params=data_item["params"],
             )
             tasks_for_tts.append(task)
 
-        # Gather all TTS results
         tts_results = await asyncio.gather(*tasks_for_tts)
 
         # Save the results to temporary files
@@ -206,38 +205,65 @@ class AudioGeneratorWithEffects:
         self,
         tts_audio_files: list[str],
         lines_for_sound_effect: list[int],
-        sound_emotion_results: list[dict],
+        data_for_sound_effects: list[dict],
         temp_files: list[str],
     ) -> list[str]:
         """Add sound effects to the selected lines."""
-        audio_chunks = []
+
+        semaphore = asyncio.Semaphore(ELEVENLABS_MAX_PARALLEL)
+
+        async def _process_single_phrase(
+            tts_filename: str,
+            sound_effect_data: dict | None,
+            sound_effect_filename: str,
+        ):
+            if sound_effect_data is None:
+                return (tts_filename, [])
+
+            async with semaphore:
+                sound_result = await sound_generation_consumed(sound_effect_data)
+
+            # save to file
+            with open(sound_effect_filename, "wb") as ab:
+                for chunk in sound_result:
+                    ab.write(chunk)
+
+            # overlay sound effect on TTS audio
+            tts_with_effects_filename = add_overlay_for_audio(
+                main_audio_filename=tts_filename,
+                sound_effect_filename=sound_effect_filename,
+                cycling_effect=True,
+                decrease_effect_volume=5,
+            )
+            tmp_files = [sound_effect_filename, tts_with_effects_filename]
+            return (tts_with_effects_filename, tmp_files)
+
+        tasks = []
         for idx, tts_filename in enumerate(tts_audio_files):
-            # If the line has sound emotion data, generate sound effect and overlay
-            if idx in lines_for_sound_effect:
-                # Get next sound effect data
-                sound_effect_data = sound_emotion_results.pop(0)
-                sound_effect_filename = f"sound_effect_{idx}.wav"
+            sound_effect_filename = f"sound_effect_{idx}.wav"
 
-                # Generate sound effect asynchronously
-                sound_result = await consume_aiter(
-                    sound_generation_astream(sound_effect_data)
+            if idx not in lines_for_sound_effect:
+                tasks.append(
+                    _process_single_phrase(
+                        tts_filename=tts_filename,
+                        sound_effect_data=None,
+                        sound_effect_filename=sound_effect_filename,
+                    )
                 )
-                with open(sound_effect_filename, "wb") as ab:
-                    for chunk in sound_result:
-                        ab.write(chunk)
-
-                # Add sound effect overlay
-                output_filename = add_overlay_for_audio(
-                    main_audio_filename=tts_filename,
-                    sound_effect_filename=sound_effect_filename,
-                    cycling_effect=True,
-                    decrease_effect_volume=5,
-                )
-                audio_chunks.append(output_filename)
-                temp_files.append(sound_effect_filename)  # Track temp files
-                temp_files.append(output_filename)
             else:
-                audio_chunks.append(tts_filename)
+                sound_effect_data = data_for_sound_effects.pop(0)
+                tasks.append(
+                    _process_single_phrase(
+                        tts_filename=tts_filename,
+                        sound_effect_data=sound_effect_data,
+                        sound_effect_filename=sound_effect_filename,
+                    )
+                )
+
+        outputs = await asyncio.gather(*tasks)
+        audio_chunks = [x[0] for x in outputs]
+        tmp_files_to_add = [item for x in outputs for item in x[1]]
+        temp_files.extend(tmp_files_to_add)
 
         return audio_chunks
 

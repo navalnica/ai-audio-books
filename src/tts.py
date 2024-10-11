@@ -39,7 +39,10 @@ async def tts_astream(
             style=params.get("style"),
         )
 
-    logger.info(f"call to 11labs TTS endpoint with params: {params_all}")
+    logger.info(
+        f"request to 11labs TTS endpoint with params {params_all} "
+        f'for the following text: "{text}"'
+    )
     async_iter = ELEVEN_CLIENT_ASYNC.text_to_speech.convert(**params_all)
     async for chunk in async_iter:
         if chunk:
@@ -57,11 +60,23 @@ async def tts_astream_consumed(
 async def sound_generation_astream(
     sound_generation_data: dict,
 ) -> t.AsyncIterator[bytes]:
+    text = sound_generation_data.pop("text")
+    logger.info(
+        f"request to 11labs sound effect generation with params {sound_generation_data} "
+        f'for the following text: "{text}"'
+    )
+
     async_iter = ELEVEN_CLIENT_ASYNC.text_to_sound_effects.convert(
-        text=sound_generation_data["text"],
+        text=text,
         duration_seconds=sound_generation_data["duration_seconds"],
         prompt_influence=sound_generation_data["prompt_influence"],
     )
     async for chunk in async_iter:
         if chunk:
             yield chunk
+
+
+@auto_retry
+async def sound_generation_consumed(sound_generation_data: dict):
+    aiterator = sound_generation_astream(sound_generation_data=sound_generation_data)
+    return [x async for x in aiterator]
