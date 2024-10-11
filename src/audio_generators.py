@@ -67,10 +67,15 @@ class AudioGeneratorWithEffects:
         text_split: SplitTextOutput,
         character_to_voice: dict[str, str],
         out_path: Path | None = None,
+        *,
+        generate_effects: bool = True,
     ) -> Path:
         """Main method to generate the audiobook with TTS, emotion, and sound effects."""
         num_lines = len(text_split.phrases)
-        lines_for_sound_effect = self._select_lines_for_sound_effect(num_lines)
+        lines_for_sound_effect = self._select_lines_for_sound_effect(
+            num_lines, fraction=float(0.2 * generate_effects),
+        )
+        logger.info(f"{generate_effects = }, {lines_for_sound_effect = }")
 
         # Step 1: Process and modify text
         modified_texts, sound_emotion_results = await self._process_and_modify_text(
@@ -96,9 +101,9 @@ class AudioGeneratorWithEffects:
 
         return final_output
 
-    def _select_lines_for_sound_effect(self, num_lines: int) -> list[int]:
-        """Select 20% of the lines randomly for sound effect generation."""
-        return random.sample(range(num_lines), k=int(0.0 * num_lines))
+    def _select_lines_for_sound_effect(self, num_lines: int, fraction: float) -> list[int]:
+        """Select % of the lines randomly for sound effect generation."""
+        return random.sample(range(num_lines), k=int(fraction * num_lines))
 
     async def _process_and_modify_text(
         self, text_split: SplitTextOutput, lines_for_sound_effect: list[int]

@@ -45,7 +45,11 @@ def load_text_from_file(uploaded_file):
     return text
 
 
-async def respond(text: str, uploaded_file) -> tuple[Path | None, str]:
+async def respond(
+    text: str,
+    uploaded_file,
+    generate_effects: bool,
+) -> tuple[Path | None, str]:
     if uploaded_file is not None:
         try:
             text = load_text_from_file(uploaded_file=uploaded_file)
@@ -54,7 +58,7 @@ async def respond(text: str, uploaded_file) -> tuple[Path | None, str]:
             return (None, str(e))
 
     builder = AudiobookBuilder()
-    audio_fp = await builder.run(text=text)
+    audio_fp = await builder.run(text=text, generate_effects=generate_effects)
     return audio_fp, ""
 
 
@@ -78,10 +82,12 @@ with gr.Blocks(title="Audiobooks Generation") as ui:
             label="Error Messages", interactive=False, visible=False
         )  # Initially hidden
 
+    effects_generation_checkbox = gr.Checkbox(label="Generate background effects")
+
     submit_button = gr.Button("Submit")
     submit_button.click(
         fn=respond,
-        inputs=[text_input, file_input],  # Include the uploaded file as an input
+        inputs=[text_input, file_input, effects_generation_checkbox],  # Include the uploaded file as an input
         outputs=[
             audio_output,
             error_output,
