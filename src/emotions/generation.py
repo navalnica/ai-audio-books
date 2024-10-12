@@ -14,6 +14,7 @@ from .prompts import (
     SOUND_EFFECT_GENERATION_WITHOUT_DURATION_PREDICTION,
     TEXT_MODIFICATION,
     TEXT_MODIFICATION_WITH_SSML,
+    TEXT_MODIFICATION_WITH_CONTEXT
 )
 from .utils import get_audio_duration
 
@@ -132,7 +133,7 @@ class EffectGeneratorAsync(AbstractEffectGenerator):
             if predict_duration
             else SOUND_EFFECT_GENERATION_WITHOUT_DURATION_PREDICTION
         )
-        self.text_modification_prompt = TEXT_MODIFICATION_WITH_SSML
+        self.text_modification_prompt = TEXT_MODIFICATION_WITH_CONTEXT
         self.model_type = model_type
 
     @auto_retry
@@ -185,12 +186,15 @@ class EffectGeneratorAsync(AbstractEffectGenerator):
         return TextPreparationForTTSTaskOutput(task="add_effects", output=llm_output)
 
     @auto_retry
-    async def add_emotion_to_text(self, text: str) -> TextPreparationForTTSTaskOutput:
+    async def add_emotion_to_text(self, text: str, context_before: str, context_after: str) -> TextPreparationForTTSTaskOutput:
+        text_to_prompt = f'*** Text to modify: {text} /n' \
+                         f'*** Text before it: {context_before} /n' \
+                         f'*** Text after it: {context_after}'
         completion = await self.client.chat.completions.create(
             model=self.model_type,
             messages=[
                 {"role": "system", "content": self.text_modification_prompt},
-                {"role": "user", "content": text},
+                {"role": "user", "content": text_to_prompt},
             ],
             response_format={"type": "json_object"},
         )
