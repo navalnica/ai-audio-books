@@ -84,12 +84,12 @@ class AudioGeneratorWithEffects:
             text_split, lines_for_sound_effect
         )
 
-        tts_results, self.temp_files = await self._generate_tts_audio(
+        tts_results, self.temp_files, timespams = await self._generate_tts_audio(
             text_split, data_for_tts, character_to_voice
         )
 
         audio_chunks = await self._add_sound_effects(
-            tts_results, lines_for_sound_effect, data_for_sound_effects, self.temp_files
+            tts_results, lines_for_sound_effect, data_for_sound_effects, self.temp_files, timespams
         )
 
         normalized_audio_chunks = self._normalize_audio_chunks(
@@ -168,7 +168,7 @@ class AudioGeneratorWithEffects:
         text_split: SplitTextOutput,
         data_for_tts: list[dict],
         character_to_voice: dict[str, str],
-    ) -> tuple[list[str], list[str]]:
+    ) -> tuple[list[str], list[str], list[dict]]:
         """Generate TTS audio for modified text."""
         tasks_for_tts = []
         temp_files = []
@@ -204,7 +204,7 @@ class AudioGeneratorWithEffects:
             tts_audio_files.append(tts_filename)
             temp_files.append(tts_filename)
 
-        return tts_audio_files, temp_files
+        return tts_audio_files, temp_files, tts_result["alignment"]
 
     async def _add_sound_effects(
         self,
@@ -212,6 +212,12 @@ class AudioGeneratorWithEffects:
         lines_for_sound_effect: list[int],
         data_for_sound_effects: list[dict],
         temp_files: list[str],
+        timespams: list[dict],
+            # {
+            # 'characters':['B', 'o',
+            # 'character_start_times_seconds':[0.0, 0.186,
+            # 'character_end_times_seconds':[0.186, 0.279,
+            # }
     ) -> list[str]:
         """Add sound effects to the selected lines."""
 

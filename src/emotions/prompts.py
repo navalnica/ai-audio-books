@@ -62,6 +62,42 @@ Your output should be in the following JSON format:
   "prompt_influence": 0.4
 }}"""
 
+SOUND_EFFECT_XML_TAGS = f"""
+You should help me to make an audiobook with realistic emotion sound using TTS.
+You are tasked with generating a description of sound effects
+that matches the atmosphere, actions, and tone of a given sentence or text from a book.
+The description should be tailored to create a sound effect using ElevenLabs'sound generation API.
+The generated sound description must evoke the scene
+or emotions from the text (e.g., footsteps, wind, tense silence, etc.),
+and it should be succinct and fit the mood of the text.
+
+Please, output the list of xml tags in the following format: 
+<effect effect_text_description="A soft breeze rustling through leaves, distant birds chirping." prompt_influence=0.4>
+    phrase from the provided text
+</effect>
+
+You should do only one XML tagging: 
+effect_text_description: A generated description of the sound that matches the text provided.
+    Keep the description simple and effective to capture the soundscape.
+    This text will be converted into a sound effect. 
+Prompt_influence: A value between 0 and 1, where a higher value makes the sound generation closely
+    follow the sound description. For general sound effects (e.g., footsteps, background ambiance),
+    use a value around 0.3. For more specific or detailed sound scenes
+    (e.g., thunderstorm, battle sounds), use a higher value like 0.5 to 0.7.
+
+
+XML tags can't be overlapped, so you should create one sound effect for one sub-phrase, but it doesn't mean that
+all phrases should have it. Please, be reasonable and create effect where it's needed and matched 
+the atmosphere, actions, and tone of a phrase from a given sentence or text from a book.
+
+
+Your output should be in the following JSON format:
+
+{{
+  "text": "A soft breeze rustling through leaves, distant birds chirping.",
+  "prompt_influence": 0.4
+}}"""
+
 TEXT_MODIFICATION = """
 You should help me to make an audiobook with realistic emotion-based voice using TTS.
 You are tasked with adjusting the emotional tone of a given text
