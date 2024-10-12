@@ -1,4 +1,5 @@
 import typing as t
+import base64
 
 from dotenv import load_dotenv
 from elevenlabs.client import AsyncElevenLabs, ElevenLabs
@@ -43,18 +44,17 @@ async def tts_astream(
         f"request to 11labs TTS endpoint with params {params_all} "
         f'for the following text: "{text}"'
     )
-    async_iter = ELEVEN_CLIENT_ASYNC.text_to_speech.convert(**params_all)
-    async for chunk in async_iter:
-        if chunk:
-            yield chunk
+    result = await ELEVEN_CLIENT_ASYNC.text_to_speech.convert_with_timestamps(**params_all)
+    audio_data = base64.b64decode(result["audio_base64"])
+    alignment_data = result["alignment"]
+    return {"audio_bytes": audio_data, "alignment": alignment_data}
 
 
 @auto_retry
-async def tts_astream_consumed(
+async def tts_consumed(
     voice_id: str, text: str, params: dict | None = None
 ) -> list[bytes]:
-    aiterator = tts_astream(voice_id=voice_id, text=text, params=params)
-    return [x async for x in aiterator]
+    return await tts_astream(voice_id=voice_id, text=text, params=params)
 
 
 async def sound_generation_astream(

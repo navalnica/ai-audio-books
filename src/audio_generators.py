@@ -9,7 +9,7 @@ from langchain_community.callbacks import get_openai_callback
 from pydub import AudioSegment
 
 from src.lc_callbacks import LCMessageLoggerAsync
-from src.tts import tts_astream_consumed, sound_generation_consumed
+from src.tts import tts_consumed, sound_generation_consumed
 from src.utils import consume_aiter
 from src.emotions.generation import (
     EffectGeneratorAsync,
@@ -29,16 +29,16 @@ class AudioGeneratorSimple:
     ) -> Path:
         semaphore = asyncio.Semaphore(ELEVENLABS_MAX_PARALLEL)
 
-        async def tts_astream_with_semaphore(voice_id: str, text: str):
+        async def tts_with_semaphore(voice_id: str, text: str):
             async with semaphore:
-                bytes_ = await tts_astream_consumed(voice_id=voice_id, text=text)
+                bytes_wt_stamps_ = await tts_consumed(voice_id=voice_id, text=text)
                 # bytes_ = await consume_aiter(iter_)
-                return bytes_
+                return bytes_wt_stamps_
 
         tasks = []
         for character_phrase in text_split.phrases:
             voice_id = character_to_voice[character_phrase.character]
-            task = tts_astream_with_semaphore(
+            task = tts_with_semaphore(
                 voice_id=voice_id, text=character_phrase.text
             )
             tasks.append(task)
@@ -52,8 +52,7 @@ class AudioGeneratorSimple:
         logger.info(f'saving generated audio book to: "{audio_combined_fp}"')
         with open(audio_combined_fp, "wb") as ab:
             for result in results:
-                for chunk in result:
-                    ab.write(chunk)
+                ab.write(result['audio_bytes'])
 
         return audio_combined_fp
 
@@ -128,11 +127,18 @@ class AudioGeneratorWithEffects:
 
         for idx, character_phrase in enumerate(text_split.phrases):
             character_text = character_phrase.text.strip().lower()
+            context_before = ' '.join([phrase.text for phrase in text_split.phrases[max(0, idx-10): max(0, idx-1)]])
+            context_after = ' '.join([phrase.text for phrase in text_split.phrases[min(idx+1, len(text_split.phrases)):
+                                                                                   min(idx+11, len(text_split.phrases))]])
+            context_before = context_before[len(context_before)-1000:]
+            context_after = context_after[:1000]
 
             tasks.append(
                 run_task_with_semaphore(
                     func=self.effect_generator.add_emotion_to_text,
                     text=character_text,
+                    context_before=context_before,
+                    context_after=context_after
                 )
             )
 
@@ -167,20 +173,20 @@ class AudioGeneratorWithEffects:
         tasks_for_tts = []
         temp_files = []
 
-        async def tts_astream_with_semaphore(voice_id: str, text: str, params: dict):
+        async def tts_with_semaphore(voice_id: str, text: str, params: dict):
             async with self.semaphore:
-                bytes_ = await tts_astream_consumed(
+                bytes_wt_stamps_ = await tts_consumed(
                     voice_id=voice_id, text=text, params=params
                 )
                 # bytes_ = await consume_aiter(iter_)
-                return bytes_
+                return bytes_wt_stamps_
 
         for idx, (data_item, character_phrase) in enumerate(
             zip(data_for_tts, text_split.phrases)
         ):
             voice_id = character_to_voice[character_phrase.character]
 
-            task = tts_astream_with_semaphore(
+            task = tts_with_semaphore(
                 voice_id=voice_id,
                 text=data_item["modified_text"],
                 params=data_item["params"],
@@ -194,8 +200,7 @@ class AudioGeneratorWithEffects:
         for idx, tts_result in enumerate(tts_results):
             tts_filename = f"tts_output_{idx}.wav"
             with open(tts_filename, "wb") as ab:
-                for chunk in tts_result:
-                    ab.write(chunk)
+                ab.write(tts_result["audio_bytes"])
             tts_audio_files.append(tts_filename)
             temp_files.append(tts_filename)
 

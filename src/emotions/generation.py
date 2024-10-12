@@ -186,11 +186,10 @@ class EffectGeneratorAsync(AbstractEffectGenerator):
         return TextPreparationForTTSTaskOutput(task="add_effects", output=llm_output)
 
     @auto_retry
-    async def add_emotion_to_text(self, text: str, text_before: str, text_after: str) -> dict:
+    async def add_emotion_to_text(self, text: str, context_before: str, context_after: str) -> TextPreparationForTTSTaskOutput:
         text_to_prompt = f'*** Text to modify: {text} /n' \
-                         f'*** Text before it: {text_before} /n' \
-                         f'*** Text after it: {text_after}'
-    async def add_emotion_to_text(self, text: str) -> TextPreparationForTTSTaskOutput:
+                         f'*** Text before it: {context_before} /n' \
+                         f'*** Text after it: {context_after}'
         completion = await self.client.chat.completions.create(
             model=self.model_type,
             messages=[
