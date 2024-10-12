@@ -10,23 +10,22 @@ pinned: false
 python_version: 3.11
 ---
 
-### Action items
-- check new set of voices
+### Action Items / Ideas
+
 - intonations
-    - add context 
+    - add context
 - audio effects
     - add context
     - filter, apply only for long phrases
-    - only for narrator?
-    - checkbox! make effects great again (no) optional
-- limit on input text size
-- fix UI
-- slides / story
+- improve UI
+    - show character parts
+- testing
+    - eval current execution time
 - optimizations
     - combine sequential phrases of same character in single phrase
     - support large texts. use batching. problem: how to ensure same characters?
-- can detect characters in first prompt, then split text in each batch into character phrases
-    - probably split large phrases into smaller ones
-    - identify unknown characters
-    - use LLM to recognize characters for a given text and provide descriptions detailed enough to select appropriate voice
+    - can detect characters in first prompt, then split text in each batch into character phrases
+        - probably split large phrases into smaller ones
+        - identify unknown characters
+        - use LLM to recognize characters for a given text and provide descriptions detailed enough to select appropriate voice
 

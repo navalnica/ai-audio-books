@@ -9,7 +9,8 @@ from langchain_community.document_loaders import PyPDFLoader
 load_dotenv()
 
 from src.builder import AudiobookBuilder
-from src.config import logger, FILE_SIZE_MAX
+from src.config import logger, FILE_SIZE_MAX, MAX_TEXT_LEN, DESCRIPTION
+from data import samples_to_split as samples
 
 
 def get_auth_params():
@@ -45,7 +46,11 @@ def load_text_from_file(uploaded_file):
     return text
 
 
-async def respond(text: str, uploaded_file) -> tuple[Path | None, str]:
+async def respond(
+    text: str,
+    uploaded_file,
+    generate_effects: bool,
+) -> tuple[Path | None, str]:
     if uploaded_file is not None:
         try:
             text = load_text_from_file(uploaded_file=uploaded_file)
@@ -53,8 +58,17 @@ async def respond(text: str, uploaded_file) -> tuple[Path | None, str]:
             logger.exception(e)
             return (None, str(e))
 
+    if (text_len := len(text)) > MAX_TEXT_LEN:
+        gr.Warning(
+            f"Input text length of {text_len} characters "
+            f"exceeded current limit of {MAX_TEXT_LEN} characters. "
+            "Please input a shorter text."
+        )
+        return None, ""
+
     builder = AudiobookBuilder()
-    audio_fp = await builder.run(text=text)
+    audio_fp = await builder.run(text=text, generate_effects=generate_effects)
+
     return audio_fp, ""
 
 
@@ -63,32 +77,62 @@ def refresh():
 
 
 with gr.Blocks(title="Audiobooks Generation") as ui:
-    gr.Markdown("# Audiobooks Generation")
+    gr.Markdown(DESCRIPTION)
 
     with gr.Row(variant="panel"):
-        text_input = gr.Textbox(label="Enter the book text", lines=20)
-        # Add a file upload field for .txt and .pdf files
+        text_input = gr.Textbox(label="Enter the book text here", lines=15)
         file_input = gr.File(
-            label="Upload a text file or PDF", file_types=[".txt", ".pdf"]
+            label="Upload a text file or PDF",
+            file_types=[".txt", ".pdf"],
+            visible=False,
         )
 
-    with gr.Row(variant="panel"):
-        audio_output = gr.Audio(label="Generated audio", type="filepath")
-        error_output = gr.Textbox(
-            label="Error Messages", interactive=False, visible=False
-        )  # Initially hidden
+    examples = gr.Examples(
+        examples=[
+            [samples.GATSBY_1],
+            [samples.GATSBY_2],
+            [samples.WONDERFUL_CHRISTMAS_1],
+            [samples.WONDERFUL_CHRISTMAS_2],
+        ],
+        inputs=text_input,
+        label="Sample Inputs",
+        example_labels=[
+            "The Great Gatsby, #1",
+            "The Great Gatsby, #2",
+            "The Wonderful Christmas in Pumpkin Delight Lane, #1",
+            "The Wonderful Christmas in Pumpkin Delight Lane, #2",
+        ],
+    )
 
-    submit_button = gr.Button("Submit")
+    audio_output = gr.Audio(
+        label='Generated audio. Please wait for the waveform to appear, before hitting "Play"',
+        type="filepath",
+    )
+    # error output is hidden initially
+    error_output = gr.Textbox(label="Error Message", interactive=False, visible=False)
+
+    effects_generation_checkbox = gr.Checkbox(
+        label="Add background effects",
+        value=False,
+        info="Select if you want to add occasional sound effect to the audiobook",
+    )
+
+    with gr.Row(variant="panel"):
+        submit_button = gr.Button("Generate the audiobook", variant="primary")
+        refresh_button = gr.Button("Refresh", variant="secondary")
+
     submit_button.click(
         fn=respond,
-        inputs=[text_input, file_input],  # Include the uploaded file as an input
+        inputs=[
+            text_input,
+            file_input,
+            effects_generation_checkbox,
+        ],  # Include the uploaded file as an input
         outputs=[
             audio_output,
             error_output,
         ],  # Include the audio output and error message output
     )
-
-    refresh_button = gr.Button("Refresh")
     refresh_button.click(
         fn=refresh,
         inputs=[],

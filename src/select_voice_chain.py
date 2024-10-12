@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from src.config import logger
 from src.prompts import CharacterVoicePropertiesPrompt
 from src.utils import GPTModels, get_chat_llm
+from src.config import VOICES_CSV_FP
 
 
 class Property(StrEnum):
@@ -55,13 +56,26 @@ class VoiceSelector:
         Property.age_group: {"young", "middle_aged", "old"},
     }
 
-    def __init__(self, csv_table_fp: str):
-        self.df = self.read_data_table(csv_table_fp=csv_table_fp)
+    def __init__(self):
+        self.df = self.read_data_table(csv_table_fp=VOICES_CSV_FP)
 
     def read_data_table(self, csv_table_fp: str):
         logger.info(f'reading voice data from: "{csv_table_fp}"')
         df = pd.read_csv(csv_table_fp)
+        logger.info(f"{df.shape=}")
         df["age"] = df["age"].str.replace(" ", "_").str.replace("-", "_")
+
+        if "manual_quality_review" in df.columns:
+            logger.info('filtering df by "manual_quality_review" column')
+
+            # TODO: may need to use clever sampling, since we limit number of voices available.
+            # some property groups have small number of voices left.
+            # ix_to_drop = df[df["manual_quality_review"].isin(["very bad"])].index
+            ix_to_drop = df[df["manual_quality_review"].isin(["very bad", "bad"])].index
+
+            df.drop(index=ix_to_drop, inplace=True)
+            logger.info(f"df.shape after filtering voices: {df.shape}")
+
         return df
 
     def get_available_properties_str(self, prop: Property):

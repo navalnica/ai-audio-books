@@ -7,6 +7,7 @@ from elevenlabs import VoiceSettings
 load_dotenv()
 
 from src.config import logger, ELEVENLABS_API_KEY
+from src.utils import auto_retry
 
 ELEVEN_CLIENT = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 
@@ -38,21 +39,44 @@ async def tts_astream(
             style=params.get("style"),
         )
 
-    logger.info(f"call to 11labs TTS endpoint with params: {params_all}")
+    logger.info(
+        f"request to 11labs TTS endpoint with params {params_all} "
+        f'for the following text: "{text}"'
+    )
     async_iter = ELEVEN_CLIENT_ASYNC.text_to_speech.convert(**params_all)
     async for chunk in async_iter:
         if chunk:
             yield chunk
 
 
+@auto_retry
+async def tts_astream_consumed(
+    voice_id: str, text: str, params: dict | None = None
+) -> list[bytes]:
+    aiterator = tts_astream(voice_id=voice_id, text=text, params=params)
+    return [x async for x in aiterator]
+
+
 async def sound_generation_astream(
     sound_generation_data: dict,
 ) -> t.AsyncIterator[bytes]:
+    text = sound_generation_data.pop("text")
+    logger.info(
+        f"request to 11labs sound effect generation with params {sound_generation_data} "
+        f'for the following text: "{text}"'
+    )
+
     async_iter = ELEVEN_CLIENT_ASYNC.text_to_sound_effects.convert(
-        text=sound_generation_data["text"],
+        text=text,
         duration_seconds=sound_generation_data["duration_seconds"],
         prompt_influence=sound_generation_data["prompt_influence"],
     )
     async for chunk in async_iter:
         if chunk:
             yield chunk
+
+
+@auto_retry
+async def sound_generation_consumed(sound_generation_data: dict):
+    aiterator = sound_generation_astream(sound_generation_data=sound_generation_data)
+    return [x async for x in aiterator]
