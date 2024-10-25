@@ -2,6 +2,8 @@ from enum import StrEnum
 
 from httpx import Timeout
 from langchain_openai import ChatOpenAI
+from openai import api_key
+import pandas as pd
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -32,3 +34,8 @@ def auto_retry(f):
         stop=stop_after_attempt(10),
     )
     return decorator(f)
+
+
+def get_audio_from_voice_id(voice_id: str, input_csv_path: str = "data/11labs_available_tts_voices.reviewed.csv") -> str:
+    voices_df = pd.read_csv(input_csv_path)
+    return voices_df[voices_df["voice_id"] == voice_id]["preview_url"].values[0]
