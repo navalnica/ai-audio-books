@@ -6,17 +6,19 @@ import gradio as gr
 from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 
+from src.utils import get_audio_from_voice_id
+
 load_dotenv()
 
 from src.builder import AudiobookBuilder
-from src.config import logger, FILE_SIZE_MAX, MAX_TEXT_LEN, DESCRIPTION
+from src.config import logger, FILE_SIZE_MAX, MAX_TEXT_LEN, GRADIO_THEME, DESCRIPTION_JS
 from data import samples_to_split as samples
 
 
-def get_auth_params():
+def get_auth_params() -> tuple[str, str]:
     user = os.environ["AUTH_USER"]
     password = os.environ["AUTH_PASS"]
-    return (user, password)
+    return user, password
 
 
 def parse_pdf(file_path):
@@ -50,13 +52,13 @@ async def respond(
     text: str,
     uploaded_file,
     generate_effects: bool,
-) -> tuple[Path | None, str]:
+) -> tuple[Path | None, str, str]:
     if uploaded_file is not None:
         try:
             text = load_text_from_file(uploaded_file=uploaded_file)
         except Exception as e:
             logger.exception(e)
-            return (None, str(e))
+            yield None, str(e), "### Error\nFailed to process file."
 
     if (text_len := len(text)) > MAX_TEXT_LEN:
         gr.Warning(
@@ -64,27 +66,109 @@ async def respond(
             f"exceeded current limit of {MAX_TEXT_LEN} characters. "
             "Please input a shorter text."
         )
-        return None, ""
+        yield None, "", "### Error\nText too long. Please input a shorter text."
+
+    # Initial status
+    yield None, "", """
+### Status: Starting Process
+🔄 Splitting text to characters...
+"""
 
     builder = AudiobookBuilder()
-    audio_fp = await builder.run(text=text, generate_effects=generate_effects)
+    text_split = await builder.split_text(text)
+    text_split_dict_list = [item.model_dump() for item in text_split._phrases]
 
-    return audio_fp, ""
+    # Create character list markdown
+    characters_md = "\n".join(
+        f"- **Text:** {item['text']}\n  **Character:** {item['character'] or 'Unassigned'}"
+        for item in text_split_dict_list
+    )
+
+    yield None, "", f"""
+### Status: Text Analysis Complete
+✅ Text split into {len(text_split_dict_list)} segments
+🔄 Mapping characters to voices...
+
+### Characters Identification:
+{characters_md}
+"""
+
+    select_voice_chain_out = await builder.map_characters_to_voices(
+        text_split=text_split,
+    )
+
+    # Create voice mapping markdown
+    result_voice_chain_out = {}
+    for key in set(select_voice_chain_out.character2props) | set(
+        select_voice_chain_out.character2voice
+    ):
+        result_voice_chain_out[key] = select_voice_chain_out.character2props.get(
+            key, []
+        ).model_dump()
+        result_voice_chain_out[key]["voice_id"] = select_voice_chain_out.character2voice.get(key, [])
+        result_voice_chain_out[key]["sample_audio_url"] = get_audio_from_voice_id(result_voice_chain_out[key]["voice_id"])
+
+    mapping_md = "\n".join(
+        f"- **{character}** →"
+        f" **Gender**: {voice_properties.get('gender', None)}, "
+        f"**Age**: {voice_properties.get('age_group', None)}, "
+        f"**Voice ID**: {voice_properties.get('voice_id', None)} "
+        f"[<a href='#' class='audio-link' data-audio-url='{voice_properties.get('sample_audio_url', '')}'>Listen Preview 🔊</a>]"
+        for character, voice_properties in result_voice_chain_out.items()
+    )
+
+    yield None, "", f"""
+### Status: Voice Mapping Complete
+✅ Text split into {len(text_split_dict_list)} segments
+✅ Voice mapping completed
+🔄 Generating audio...
+
+### Characters Identification:
+{characters_md}
+
+### Voice Assignments:
+{mapping_md}
+"""
+
+    out_path = await builder.audio_generator.generate_audio(
+        text_split=text_split,
+        character_to_voice=select_voice_chain_out.character2voice,
+        generate_effects=generate_effects,
+    )
+
+    yield out_path, "", f"""
+### Status: Process Complete ✨
+✅ Text split into {len(text_split_dict_list)} segments
+✅ Voice mapping completed
+✅ Audio generation complete
+
+### Characters Identification:
+{characters_md}
+
+### Voice Assignments:
+{mapping_md}
+
+### 🎉 Your audiobook is ready! Press play to listen.
+"""
 
 
 def refresh():
-    return None, None, None  # Reset audio output, error message, and uploaded file
+    return None, None, None, None
 
 
-with gr.Blocks(title="Audiobooks Generation") as ui:
-    gr.Markdown(DESCRIPTION)
-
+with gr.Blocks(js=DESCRIPTION_JS, theme=GRADIO_THEME) as ui:
     with gr.Row(variant="panel"):
         text_input = gr.Textbox(label="Enter the book text here", lines=15)
         file_input = gr.File(
             label="Upload a text file or PDF",
             file_types=[".txt", ".pdf"],
-            visible=False,
+            visible=True,
+        )
+    # Add status panel
+    with gr.Row(variant="panel"):
+        status_display = gr.Markdown(
+            value="### Status: Waiting to Start\nEnter text or upload a file to begin.",
+            label="Generation Status",
         )
 
     examples = gr.Examples(
@@ -108,7 +192,7 @@ with gr.Blocks(title="Audiobooks Generation") as ui:
         label='Generated audio. Please wait for the waveform to appear, before hitting "Play"',
         type="filepath",
     )
-    # error output is hidden initially
+
     error_output = gr.Textbox(label="Error Message", interactive=False, visible=False)
 
     effects_generation_checkbox = gr.Checkbox(
@@ -131,6 +215,7 @@ with gr.Blocks(title="Audiobooks Generation") as ui:
         outputs=[
             audio_output,
             error_output,
+            status_display,
         ],  # Include the audio output and error message output
     )
     refresh_button.click(
@@ -140,6 +225,7 @@ with gr.Blocks(title="Audiobooks Generation") as ui:
             audio_output,
             error_output,
             file_input,
+            status_display,
         ],  # Reset audio output, error message, and uploaded file
     )
 
