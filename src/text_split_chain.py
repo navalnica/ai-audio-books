@@ -9,7 +9,7 @@ from langchain_core.prompts import (
 from langchain_core.runnables import RunnablePassthrough
 from pydantic import BaseModel
 
-from src.prompts import SplitTextPromptV1, SplitTextPromptV2
+from src.prompts import SplitTextPrompt
 from src.utils import GPTModels, get_chat_llm
 
 
@@ -63,8 +63,8 @@ def create_split_text_chain(llm_model: GPTModels):
 
     prompt = ChatPromptTemplate.from_messages(
         [
-            SystemMessagePromptTemplate.from_template(SplitTextPromptV2.SYSTEM),
-            HumanMessagePromptTemplate.from_template(SplitTextPromptV2.USER),
+            SystemMessagePromptTemplate.from_template(SplitTextPrompt.SYSTEM),
+            HumanMessagePromptTemplate.from_template(SplitTextPrompt.USER),
         ]
     )
 
@@ -74,53 +74,3 @@ def create_split_text_chain(llm_model: GPTModels):
         )
     )
     return chain
-
-
-###### old code ######
-
-
-class CharacterAnnotatedText(BaseModel):
-    phrases: list[CharacterPhrase]
-    _characters: list[str]
-
-    def __init__(self, **data):
-        super().__init__(**data)
-        self._characters = list(set(phrase.character for phrase in self.phrases))
-
-    @property
-    def characters(self):
-        return self._characters
-
-    def to_pretty_text(self):
-        lines = []
-        lines.append(f"characters: {self.characters}")
-        lines.append("-" * 20)
-        lines.extend(f"[{phrase.character}] {phrase.text}" for phrase in self.phrases)
-        res = "\n".join(lines)
-        return res
-
-
-class SplitTextOutputOld(BaseModel):
-    characters: list[str]
-    parts: list[CharacterPhrase]
-
-    def to_character_annotated_text(self):
-        return CharacterAnnotatedText(phrases=self.parts)
-
-
-def create_split_text_chain_old(llm_model: GPTModels):
-    llm = get_chat_llm(llm_model=llm_model, temperature=0.0)
-    llm = llm.with_structured_output(SplitTextOutputOld, method="json_mode")
-
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            SystemMessagePromptTemplate.from_template(SplitTextPromptV1.SYSTEM),
-            HumanMessagePromptTemplate.from_template(SplitTextPromptV1.USER),
-        ]
-    )
-
-    chain = prompt | llm
-    return chain
-
-
-## end of old code ##
