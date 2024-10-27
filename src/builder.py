@@ -21,12 +21,8 @@ class AudiobookBuilder:
             )
         return chain_out
 
-    async def map_characters_to_voices(
-        self, text_split: SplitTextOutput
-    ) -> SelectVoiceChainOutput:
-        chain = self.voice_selector.create_voice_mapping_chain(
-            llm_model=GPTModels.GPT_4o
-        )
+    async def map_characters_to_voices(self, text_split: SplitTextOutput) -> SelectVoiceChainOutput:
+        chain = self.voice_selector.create_voice_mapping_chain(llm_model=GPTModels.GPT_4o)
         with get_openai_callback() as cb:
             chain_out = await chain.ainvoke(
                 {
@@ -39,9 +35,7 @@ class AudiobookBuilder:
 
     async def run(self, text: str, *, generate_effects: bool):
         text_split = await self.split_text(text)
-        select_voice_chain_out = await self.map_characters_to_voices(
-            text_split=text_split
-        )
+        select_voice_chain_out = await self.map_characters_to_voices(text_split=text_split)
         # TODO: show select_voice_chain_out.character2props on UI
         out_path = await self.audio_generator.generate_audio(
             text_split=text_split,

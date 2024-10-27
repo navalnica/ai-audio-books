@@ -15,9 +15,7 @@ class GPTModels(StrEnum):
 
 
 def get_chat_llm(llm_model: GPTModels, temperature=0.0):
-    llm = ChatOpenAI(
-        model=llm_model, temperature=temperature, timeout=Timeout(60, connect=4)
-    )
+    llm = ChatOpenAI(model=llm_model, temperature=temperature, timeout=Timeout(60, connect=4))
     return llm
 
 
@@ -39,9 +37,7 @@ def write_bytes(data: bytes, fp: str):
         fout.write(data)
 
 
-def write_raw_pcm_to_file(
-    data: bytes, fp: str, n_channels: int, bytes_depth: int, sampling_rate
-):
+def write_raw_pcm_to_file(data: bytes, fp: str, n_channels: int, bytes_depth: int, sampling_rate):
     logger.info(f'saving to: "{fp}"')
     with wave.open(fp, "wb") as f:
         f.setnchannels(n_channels)

@@ -1,15 +1,14 @@
 import typing as t
 
 from dotenv import load_dotenv
-from elevenlabs.client import AsyncElevenLabs
 from elevenlabs import VoiceSettings
+from elevenlabs.client import AsyncElevenLabs
 
 load_dotenv()
 
-from src.config import logger, ELEVENLABS_API_KEY
-from src.utils import auto_retry
+from src.config import ELEVENLABS_API_KEY, logger
 from src.schemas import SoundEffectsParams
-
+from src.utils import auto_retry
 
 ELEVEN_CLIENT_ASYNC = AsyncElevenLabs(api_key=ELEVENLABS_API_KEY)
 
@@ -39,9 +38,7 @@ async def tts_astream(
 
 
 @auto_retry
-async def tts_astream_consumed(
-    voice_id: str, text: str, params: dict | None = None
-) -> list[bytes]:
+async def tts_astream_consumed(voice_id: str, text: str, params: dict | None = None) -> list[bytes]:
     aiterator = tts_astream(voice_id=voice_id, text=text, params=params)
     return [x async for x in aiterator]
 

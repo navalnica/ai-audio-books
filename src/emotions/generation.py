@@ -152,9 +152,7 @@ class EffectGeneratorAsync(AbstractEffectGenerator):
 
             # Parse and return JSON response
             output_dict = json.loads(chatgpt_output)
-            logger.info(
-                "Successfully generated sound effect description: %s", output_dict
-            )
+            logger.info("Successfully generated sound effect description: %s", output_dict)
             return output_dict
 
         except json.JSONDecodeError as e:
@@ -197,12 +195,8 @@ class EffectGeneratorAsync(AbstractEffectGenerator):
         chatgpt_output = completion.choices[0].message.content
         try:
             output_dict = json.loads(chatgpt_output)
-            logger.info(
-                "Successfully modified text with emotional cues: %s", output_dict
-            )
-            return TextPreparationForTTSTaskOutput(
-                task="add_emotion", output=output_dict
-            )
+            logger.info("Successfully modified text with emotional cues: %s", output_dict)
+            return TextPreparationForTTSTaskOutput(task="add_emotion", output=output_dict)
         except json.JSONDecodeError as e:
             logger.error("Error in parsing the modified text: %s", e)
             raise f"error, output_text: {chatgpt_output}"

@@ -61,9 +61,7 @@ class TTSParams(ExtraForbidModel):
     seed: t.Optional[int] = Field(default_factory=lambda: OMIT)
     previous_text: t.Optional[str] = Field(default_factory=lambda: OMIT)
     next_text: t.Optional[str] = Field(default_factory=lambda: OMIT)
-    previous_request_ids: t.Optional[t.Sequence[str]] = Field(
-        default_factory=lambda: OMIT
-    )
+    previous_request_ids: t.Optional[t.Sequence[str]] = Field(default_factory=lambda: OMIT)
     next_request_ids: t.Optional[t.Sequence[str]] = Field(default_factory=lambda: OMIT)
     # request_options: t.Optional[RequestOptions] = None
 
@@ -97,9 +95,7 @@ class TTSTimestampsAlignemnt(ExtraForbidModel):
         )
 
     @classmethod
-    def combine_alignments(
-        cls, alignments: list[TTSTimestampsAlignemnt]
-    ) -> TTSTimestampsAlignemnt:
+    def combine_alignments(cls, alignments: list[TTSTimestampsAlignemnt]) -> TTSTimestampsAlignemnt:
         # NOTE: we assume alignments contain separators between them,
         # i.e. combined characters from all alignments
         # match original text that was split into chunks for TTS model.
@@ -109,12 +105,8 @@ class TTSTimestampsAlignemnt(ExtraForbidModel):
         ends = []
         prev_chunk_end_time = 0.0
         for a in alignments:
-            cur_starts_absolute = [
-                prev_chunk_end_time + s for s in a.character_start_times_seconds
-            ]
-            cur_ends_absolute = [
-                prev_chunk_end_time + e for e in a.character_end_times_seconds
-            ]
+            cur_starts_absolute = [prev_chunk_end_time + s for s in a.character_start_times_seconds]
+            cur_ends_absolute = [prev_chunk_end_time + e for e in a.character_end_times_seconds]
 
             chars.extend(a.characters)
             starts.extend(cur_starts_absolute)
@@ -143,9 +135,7 @@ class TTSTimestampsResponse(ExtraForbidModel):
     def audio_bytes(self):
         return base64.b64decode(self.audio_base64)
 
-    def write_audio_to_file(
-        self, filepath_no_ext: str, audio_format: AudioOutputFormat
-    ) -> str:
+    def write_audio_to_file(self, filepath_no_ext: str, audio_format: AudioOutputFormat) -> str:
         if audio_format.startswith("pcm_"):
             sr = int(audio_format.removeprefix("pcm_"))
             fp = f"{filepath_no_ext}.wav"

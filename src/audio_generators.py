@@ -1,24 +1,21 @@
 import asyncio
 import os
+import random
 import re
 from pathlib import Path
 from uuid import uuid4
-import random
 
 from langchain_community.callbacks import get_openai_callback
 from pydub import AudioSegment
 
-from src.lc_callbacks import LCMessageLoggerAsync
-from src.tts import tts_astream_consumed, sound_generation_consumed
-from src.utils import consume_aiter
-from src.emotions.generation import (
-    EffectGeneratorAsync,
-    TextPreparationForTTSTaskOutput,
-)
+from src.config import ELEVENLABS_MAX_PARALLEL, OPENAI_MAX_PARALLEL, logger
+from src.emotions.generation import EffectGeneratorAsync, TextPreparationForTTSTaskOutput
 from src.emotions.utils import add_overlay_for_audio
-from src.config import ELEVENLABS_MAX_PARALLEL, logger, OPENAI_MAX_PARALLEL
-from src.text_split_chain import SplitTextOutput
+from src.lc_callbacks import LCMessageLoggerAsync
 from src.schemas import SoundEffectsParams
+from src.text_split_chain import SplitTextOutput
+from src.tts import sound_generation_consumed, tts_astream_consumed
+from src.utils import consume_aiter
 
 
 class AudioGeneratorSimple:
@@ -39,9 +36,7 @@ class AudioGeneratorSimple:
         tasks = []
         for character_phrase in text_split.phrases:
             voice_id = character_to_voice[character_phrase.character]
-            task = tts_astream_with_semaphore(
-                voice_id=voice_id, text=character_phrase.text
-            )
+            task = tts_astream_with_semaphore(voice_id=voice_id, text=character_phrase.text)
             tasks.append(task)
 
         results = await asyncio.gather(*tasks)
@@ -94,21 +89,15 @@ class AudioGeneratorWithEffects:
             tts_results, lines_for_sound_effect, data_for_sound_effects, self.temp_files
         )
 
-        normalized_audio_chunks = self._normalize_audio_chunks(
-            audio_chunks, self.temp_files
-        )
+        normalized_audio_chunks = self._normalize_audio_chunks(audio_chunks, self.temp_files)
 
-        final_output = self._merge_audio_files(
-            normalized_audio_chunks, save_path=out_path
-        )
+        final_output = self._merge_audio_files(normalized_audio_chunks, save_path=out_path)
 
         self._cleanup_temp_files(self.temp_files)
 
         return final_output
 
-    def _select_lines_for_sound_effect(
-        self, num_lines: int, fraction: float
-    ) -> list[int]:
+    def _select_lines_for_sound_effect(self, num_lines: int, fraction: float) -> list[int]:
         """Select % of the lines randomly for sound effect generation."""
         return random.sample(range(num_lines), k=int(fraction * num_lines))
 
@@ -149,12 +138,8 @@ class AudioGeneratorWithEffects:
         tasks_results: list[TextPreparationForTTSTaskOutput] = []
         tasks_results = await asyncio.gather(*tasks)
 
-        emotion_tasks_results = [
-            x.output for x in tasks_results if x.task == task_emotion_code
-        ]
-        effects_tasks_results = [
-            x.output for x in tasks_results if x.task == task_effects_code
-        ]
+        emotion_tasks_results = [x.output for x in tasks_results if x.task == task_emotion_code]
+        effects_tasks_results = [x.output for x in tasks_results if x.task == task_effects_code]
 
         return emotion_tasks_results, effects_tasks_results
 
@@ -170,15 +155,11 @@ class AudioGeneratorWithEffects:
 
         async def tts_astream_with_semaphore(voice_id: str, text: str, params: dict):
             async with self.semaphore:
-                bytes_ = await tts_astream_consumed(
-                    voice_id=voice_id, text=text, params=params
-                )
+                bytes_ = await tts_astream_consumed(voice_id=voice_id, text=text, params=params)
                 # bytes_ = await consume_aiter(iter_)
                 return bytes_
 
-        for idx, (data_item, character_phrase) in enumerate(
-            zip(data_for_tts, text_split.phrases)
-        ):
+        for idx, (data_item, character_phrase) in enumerate(zip(data_for_tts, text_split.phrases)):
             voice_id = character_to_voice[character_phrase.character]
 
             task = tts_astream_with_semaphore(
@@ -222,9 +203,7 @@ class AudioGeneratorWithEffects:
                 return (tts_filename, [])
 
             async with semaphore:
-                sound_result = await sound_generation_consumed(
-                    params=sound_effects_params
-                )
+                sound_result = await sound_generation_consumed(params=sound_effects_params)
 
             # save to file
             with open(sound_effect_filename, "wb") as ab:
@@ -293,9 +272,7 @@ class AudioGeneratorWithEffects:
 
         return normalized_files
 
-    def _merge_audio_files(
-        self, audio_filenames: list[str], save_path: Path | None = None
-    ) -> Path:
+    def _merge_audio_files(self, audio_filenames: list[str], save_path: Path | None = None) -> Path:
         """Helper function to merge multiple audio files into one."""
         combined = AudioSegment.from_file(audio_filenames[0])
         for filename in audio_filenames[1:]:

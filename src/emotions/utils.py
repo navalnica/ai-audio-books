@@ -1,7 +1,7 @@
-from pydub import AudioSegment
 from pathlib import Path
-from elevenlabs import ElevenLabs, AsyncElevenLabs
-from elevenlabs import play, save
+
+from elevenlabs import AsyncElevenLabs, ElevenLabs, play, save
+from pydub import AudioSegment
 
 from src.config import logger
 
@@ -42,9 +42,7 @@ def add_overlay_for_audio(
     combined_audio = main_audio.overlay(effect_audio)
 
     if output_filename is None:
-        output_filename = (
-            f"{Path(main_audio_filename).stem}_{Path(sound_effect_filename).stem}.wav"
-        )
+        output_filename = f"{Path(main_audio_filename).stem}_{Path(sound_effect_filename).stem}.wav"
     combined_audio.export(output_filename, format="wav")
     return output_filename
 

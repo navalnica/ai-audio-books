@@ -68,9 +68,7 @@ def create_split_text_chain(llm_model: GPTModels):
         ]
     )
 
-    chain = RunnablePassthrough.assign(
-        text_annotated=prompt | llm | StrOutputParser()
-    ) | (
+    chain = RunnablePassthrough.assign(text_annotated=prompt | llm | StrOutputParser()) | (
         lambda inputs: SplitTextOutput(
             text_raw=inputs["text"], text_annotated=inputs["text_annotated"]
         )
