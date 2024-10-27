@@ -1,12 +1,11 @@
+import wave
 from enum import StrEnum
 
 from httpx import Timeout
 from langchain_openai import ChatOpenAI
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_random_exponential,
-)
+from tenacity import retry, stop_after_attempt, wait_random_exponential
+
+from src.config import logger
 
 
 class GPTModels(StrEnum):
@@ -32,3 +31,20 @@ def auto_retry(f):
         stop=stop_after_attempt(10),
     )
     return decorator(f)
+
+
+def write_bytes(data: bytes, fp: str):
+    logger.info(f'saving to: "{fp}"')
+    with open(fp, "wb") as fout:
+        fout.write(data)
+
+
+def write_raw_pcm_to_file(
+    data: bytes, fp: str, n_channels: int, bytes_depth: int, sampling_rate
+):
+    logger.info(f'saving to: "{fp}"')
+    with wave.open(fp, "wb") as f:
+        f.setnchannels(n_channels)
+        f.setsampwidth(bytes_depth)
+        f.setframerate(sampling_rate)
+        f.writeframes(data)

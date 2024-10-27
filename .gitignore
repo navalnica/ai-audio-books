@@ -4,7 +4,6 @@ venv
 .python-version
 .DS_Store
 
-data/books
-data/audiobooks
+data/**
 
 .env

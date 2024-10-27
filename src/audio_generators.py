@@ -18,6 +18,7 @@ from src.emotions.generation import (
 from src.emotions.utils import add_overlay_for_audio
 from src.config import ELEVENLABS_MAX_PARALLEL, logger, OPENAI_MAX_PARALLEL
 from src.text_split_chain import SplitTextOutput
+from src.schemas import SoundEffectsParams
 
 
 class AudioGeneratorSimple:
@@ -214,14 +215,16 @@ class AudioGeneratorWithEffects:
 
         async def _process_single_phrase(
             tts_filename: str,
-            sound_effect_data: dict | None,
+            sound_effects_params: SoundEffectsParams | None,
             sound_effect_filename: str,
         ):
-            if sound_effect_data is None:
+            if sound_effects_params is None:
                 return (tts_filename, [])
 
             async with semaphore:
-                sound_result = await sound_generation_consumed(sound_effect_data)
+                sound_result = await sound_generation_consumed(
+                    params=sound_effects_params
+                )
 
             # save to file
             with open(sound_effect_filename, "wb") as ab:
@@ -246,16 +249,16 @@ class AudioGeneratorWithEffects:
                 tasks.append(
                     _process_single_phrase(
                         tts_filename=tts_filename,
-                        sound_effect_data=None,
+                        sound_effects_params=None,
                         sound_effect_filename=sound_effect_filename,
                     )
                 )
             else:
-                sound_effect_data = data_for_sound_effects.pop(0)
+                sound_effects_params = data_for_sound_effects.pop(0)
                 tasks.append(
                     _process_single_phrase(
                         tts_filename=tts_filename,
-                        sound_effect_data=sound_effect_data,
+                        sound_effects_params=sound_effects_params,
                         sound_effect_filename=sound_effect_filename,
                     )
                 )
