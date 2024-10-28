@@ -28,11 +28,11 @@ Create an audiobook from the input text automatically, using Gen-AI!
 All you need to do - is to input the book text or select it from the provided Sample Inputs.
 
 AI will do the rest:
-- split text into characters
-- assign each character a voice
-- preprocess text to better convey emotions during Text-to-Speech
-- (optionally) add sound effects to create immersive atmosphere
-- generate audiobook using Text-to-Speech model
+- Split text into characters
+- Assign each character a voice
+- Enhance text to convey emotions and intonations during Text-to-Speech
+- Generate audiobook using Text-to-Speech model
+- Generate sound effects to create immersive atmosphere (optional)
 """
 
 DESCRIPTION_JS = """function createGradioAnimation() {
@@ -55,7 +55,7 @@ DESCRIPTION_JS = """function createGradioAnimation() {
     container.appendChild(header);
 
     // Animate title
-    var titleText = 'AudiobooksGeneration!';
+    var titleText = 'AI Audio Books';
     var title = document.createElement('h1');
     title.style.fontSize = '2.5rem';
     title.style.fontWeight = '700';
@@ -116,9 +116,9 @@ DESCRIPTION_JS = """function createGradioAnimation() {
     var steps = [
         { text: 'Split text into characters', icon: '📚' },
         { text: 'Assign each character a voice', icon: '🎭' },
-        { text: 'Preprocess text for emotions', icon: '😊' },
-        { text: 'Add sound effects to create immersive atmosphere (Optional)', icon: '🎵' },
-        { text: 'Generate audiobook using Text-to-Speech model', icon: '🎧' }
+        { text: 'Enhance text to convey emotions and intonations during Text-to-Speech', icon: '😊' },
+        { text: 'Generate audiobook using Text-to-Speech model', icon: '🎧' },
+        { text: 'Generate sound effects to create immersive atmosphere (optional)', icon: '🎵' },
     ];
 
     // Create steps list
@@ -198,4 +198,4 @@ DESCRIPTION_JS = """function createGradioAnimation() {
     return 'Animation created';
 }"""
 
-GRADIO_THEME = 'freddyaboulton/dracula_revamped'
+GRADIO_THEME = "freddyaboulton/dracula_revamped"
