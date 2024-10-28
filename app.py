@@ -14,6 +14,12 @@ from src.builder import AudiobookBuilder
 from src.config import logger, FILE_SIZE_MAX, MAX_TEXT_LEN, GRADIO_THEME, DESCRIPTION_JS
 from data import samples_to_split as samples
 
+from enum import StrEnum
+
+
+class StatusSections(StrEnum):
+    TEXT_SPLIT_BY_CHARACTER = "Text Split by Characters"
+
 
 def get_auth_params() -> tuple[str, str]:
     user = os.environ["AUTH_USER"]
@@ -71,7 +77,7 @@ async def respond(
     # Initial status
     yield None, "", """
 ### Status: Starting Process
-🔄 Splitting text to characters...
+🔄 Splitting text into characters...
 """
 
     builder = AudiobookBuilder()
@@ -79,8 +85,8 @@ async def respond(
     text_split_dict_list = [item.model_dump() for item in text_split._phrases]
 
     # Create character list markdown
-    characters_md = "\n".join(
-        f"- **Text:** {item['text']}\n  **Character:** {item['character'] or 'Unassigned'}"
+    text_split_by_character = "\n".join(
+        f"- **{item['character'] or 'Unassigned'}**: {item['text']}"
         for item in text_split_dict_list
     )
 
@@ -89,8 +95,8 @@ async def respond(
 ✅ Text split into {len(text_split_dict_list)} segments
 🔄 Mapping characters to voices...
 
-### Characters Identification:
-{characters_md}
+### {StatusSections.TEXT_SPLIT_BY_CHARACTER}:
+{text_split_by_character}
 """
 
     select_voice_chain_out = await builder.map_characters_to_voices(
@@ -105,8 +111,12 @@ async def respond(
         result_voice_chain_out[key] = select_voice_chain_out.character2props.get(
             key, []
         ).model_dump()
-        result_voice_chain_out[key]["voice_id"] = select_voice_chain_out.character2voice.get(key, [])
-        result_voice_chain_out[key]["sample_audio_url"] = get_audio_from_voice_id(result_voice_chain_out[key]["voice_id"])
+        result_voice_chain_out[key]["voice_id"] = (
+            select_voice_chain_out.character2voice.get(key, [])
+        )
+        result_voice_chain_out[key]["sample_audio_url"] = get_audio_from_voice_id(
+            result_voice_chain_out[key]["voice_id"]
+        )
 
     mapping_md = "\n".join(
         f"- **{character}** →"
@@ -123,8 +133,8 @@ async def respond(
 ✅ Voice mapping completed
 🔄 Generating audio...
 
-### Characters Identification:
-{characters_md}
+### {StatusSections.TEXT_SPLIT_BY_CHARACTER}:
+{text_split_by_character}
 
 ### Voice Assignments:
 {mapping_md}
@@ -142,8 +152,8 @@ async def respond(
 ✅ Voice mapping completed
 ✅ Audio generation complete
 
-### Characters Identification:
-{characters_md}
+### {StatusSections.TEXT_SPLIT_BY_CHARACTER}:
+{text_split_by_character}
 
 ### Voice Assignments:
 {mapping_md}
@@ -163,12 +173,6 @@ with gr.Blocks(js=DESCRIPTION_JS, theme=GRADIO_THEME) as ui:
             label="Upload a text file or PDF",
             file_types=[".txt", ".pdf"],
             visible=True,
-        )
-    # Add status panel
-    with gr.Row(variant="panel"):
-        status_display = gr.Markdown(
-            value="### Status: Waiting to Start\nEnter text or upload a file to begin.",
-            label="Generation Status",
         )
 
     examples = gr.Examples(
@@ -204,6 +208,13 @@ with gr.Blocks(js=DESCRIPTION_JS, theme=GRADIO_THEME) as ui:
     with gr.Row(variant="panel"):
         submit_button = gr.Button("Generate the audiobook", variant="primary")
         refresh_button = gr.Button("Refresh", variant="secondary")
+
+    # status panel
+    with gr.Row(variant="panel"):
+        status_display = gr.Markdown(
+            value="### Status: Waiting to Start\nEnter text or upload a file to begin.",
+            label="Generation Status",
+        )
 
     submit_button.click(
         fn=respond,
