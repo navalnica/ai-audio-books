@@ -68,3 +68,8 @@ NOTES:
 {characters}
 </characters>
 """
+
+
+# <effect prompt=\"(.*?)\">.*?</effect>
+
+# <effect prompt=\"(.*?)\" duration=\"(.*)\"/>
