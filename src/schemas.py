@@ -44,15 +44,21 @@ class TTSParams(ExtraForbidModel):
     voice_id: str
     text: str
     # enable_logging: typing.Optional[bool] = None
+
+    # NOTE: we opt for quality over speed - thus don't use this param
     # optimize_streaming_latency: typing.Optional[OptimizeStreamingLatency] = None
+
+    # NOTE: here we set default different from 11labs API
     # output_format: AudioOutputFormat = AudioOutputFormat.MP3_44100_128
     output_format: AudioOutputFormat = AudioOutputFormat.MP3_44100_192
+
     # NOTE: pydantic has protected "model_" namespace.
     # here we use workaround to pass "model_id" param to 11labs client
     # via serialization_alias
     audio_model_id: t.Optional[str] = Field(
         default_factory=lambda: OMIT, serialization_alias="model_id"
     )
+
     language_code: t.Optional[str] = Field(default_factory=lambda: OMIT)
     voice_settings: t.Optional[VoiceSettings] = Field(default_factory=lambda: OMIT)
     # pronunciation_dictionary_locators: t.Optional[
@@ -66,9 +72,20 @@ class TTSParams(ExtraForbidModel):
     # request_options: t.Optional[RequestOptions] = None
 
     def to_dict(self):
-        # NOTE: we need to set `by_alias=True` in order to correctly handle
-        # alias for `audio_model_id` field
-        return self.model_dump(by_alias=True)
+        """
+        dump the pydantic model in the format required by 11labs api.
+
+        NOTE: we need to use `by_alias=True` in order to correctly handle
+        alias for `audio_model_id` field,
+        since model_id belongs to pydantic protected namespace.
+
+        NOTE: we also ignore all fields with default Ellipsis value,
+        since 11labs will assign Ellipses itself,
+        and we won't get any warning in logs.
+        """
+        ellipsis_fields = {field for field, value in self if value is ...}
+        res = self.model_dump(by_alias=True, exclude=ellipsis_fields)
+        return res
 
 
 class TTSTimestampsAlignemnt(ExtraForbidModel):

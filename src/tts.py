@@ -1,3 +1,4 @@
+from copy import deepcopy
 import typing as t
 
 from dotenv import load_dotenv
@@ -7,7 +8,7 @@ from elevenlabs.client import AsyncElevenLabs
 load_dotenv()
 
 from src.config import ELEVENLABS_API_KEY, logger
-from src.schemas import SoundEffectsParams
+from src.schemas import TTSParams, TTSTimestampsResponse, SoundEffectsParams
 from src.utils import auto_retry
 
 ELEVEN_CLIENT_ASYNC = AsyncElevenLabs(api_key=ELEVENLABS_API_KEY)
@@ -43,41 +44,33 @@ async def tts_astream_consumed(voice_id: str, text: str, params: dict | None = N
     return [x async for x in aiterator]
 
 
-# async def _tts_astream_w_timestamps(
-#     voice_id: str, text: str, params: dict | None = None
-# ) -> dict:
-#     params_all = dict(voice_id=voice_id, text=text)
+@auto_retry
+async def tts_w_timestamps(params: TTSParams) -> TTSTimestampsResponse:
 
-#     if params is not None:
-#         params_all["voice_settings"] = VoiceSettings(  # type: ignore
-#             stability=params.get("stability"),
-#             similarity_boost=params.get("similarity_boost"),
-#             style=params.get("style"),
-#         )
+    async def _tts_w_timestamps(params: TTSParams) -> TTSTimestampsResponse:
+        # NOTE: we need to use special `to_dict()` method to ensure pydantic model is converted
+        # to dict with proper aliases
+        params_dict = params.to_dict()
 
-#     logger.info(
-#         f"request to 11labs TTS endpoint with params {params_all} "
-#         f'for the following text: "{text}"'
-#     )
-#     result = await ELEVEN_CLIENT_ASYNC.text_to_speech.convert_with_timestamps(
-#         **params_all
-#     )
-#     audio_data = base64.b64decode(result["audio_base64"])
-#     alignment_data = result["alignment"]
-#     return {"audio_bytes": audio_data, "alignment": alignment_data}
+        params_no_text = deepcopy(params_dict)
+        text = params_no_text.pop('text')
+        logger.info(
+            f"request to 11labs TTS endpoint with params {params_no_text} "
+            f'for the following text: "{text}"'
+        )
 
+        response_raw = await ELEVEN_CLIENT_ASYNC.text_to_speech.convert_with_timestamps(
+            **params_dict
+        )
 
-# @auto_retry
-# async def tts_w_timestamps(
-#     voice_id: str, text: str, params: dict | None = None
-# ) -> list[bytes]:
-#     res = await _tts_astream_w_timestamps(voice_id=voice_id, text=text, params=params)
-#     return res
+        response_parsed = TTSTimestampsResponse.model_validate(response_raw)
+        return response_parsed
+
+    res = await _tts_w_timestamps(params=params)
+    return res
 
 
-async def sound_generation_astream(
-    params: SoundEffectsParams,
-) -> t.AsyncIterator[bytes]:
+async def sound_generation_astream(params: SoundEffectsParams) -> t.AsyncIterator[bytes]:
     params_no_text = params.model_dump(exclude={"text"})
     logger.info(
         f"request to 11labs sound effect generation with params {params_no_text} "
