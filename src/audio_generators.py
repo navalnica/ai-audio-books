@@ -12,9 +12,10 @@ from pydub import AudioSegment
 from requests import HTTPError
 
 from src.config import ELEVENLABS_MAX_PARALLEL, OPENAI_API_KEY, OPENAI_MAX_PARALLEL, logger
-from src.schemas import SoundEffectsParams
+from src.schemas import SoundEffectsParams, TTSTimestampsResponse, TTSParams
+from elevenlabs import VoiceSettings
 from src.text_split_chain import SplitTextOutput
-from src.tts import sound_generation_consumed, tts_astream_consumed
+from src import tts
 from src.utils import add_overlay_for_audio, auto_retry, get_audio_duration
 
 from .prompts import (
@@ -35,7 +36,7 @@ class AudioGeneratorSimple:
 
         async def tts_astream_with_semaphore(voice_id: str, text: str):
             async with semaphore:
-                bytes_ = await tts_astream_consumed(voice_id=voice_id, text=text)
+                bytes_ = await tts.tts_astream_consumed(voice_id=voice_id, text=text)
                 # bytes_ = await consume_aiter(iter_)
                 return bytes_
 
@@ -243,34 +244,40 @@ class AudioGeneratorWithEffects:
         """Generate TTS audio for modified text."""
         tasks_for_tts = []
         temp_files = []
+        tts_params: list[TTSParams] = []
 
-        async def tts_astream_with_semaphore(voice_id: str, text: str, params: dict):
+        async def tts_with_semaphore(params: TTSParams) -> TTSTimestampsResponse:
             async with self.semaphore:
-                bytes_ = await tts_astream_consumed(voice_id=voice_id, text=text, params=params)
-                # bytes_ = await consume_aiter(iter_)
-                return bytes_
+                return await tts.tts_w_timestamps(params=params)
 
-        for idx, (data_item, character_phrase) in enumerate(zip(data_for_tts, text_split.phrases)):
+        for idx, (tts_params_dict, character_phrase) in enumerate(
+            zip(data_for_tts, text_split.phrases)
+        ):
             voice_id = character_to_voice[character_phrase.character]
 
-            task = tts_astream_with_semaphore(
+            params = TTSParams(
                 voice_id=voice_id,
-                text=data_item["modified_text"],
-                params=data_item["params"],
+                text=tts_params_dict['modified_text'],
+                voice_settings=VoiceSettings(
+                    stability=tts_params_dict["stability"],
+                    similarity_boost=tts_params_dict["similarity_boost"],
+                    style=tts_params_dict["style"],
+                ),
             )
+            tts_params.append(params)
+
+            task = tts_with_semaphore(params=params)
             tasks_for_tts.append(task)
 
-        tts_results = await asyncio.gather(*tasks_for_tts)
+        tts_results: list[TTSTimestampsResponse] = await asyncio.gather(*tasks_for_tts)
 
-        # Save the results to temporary files
         tts_audio_files = []
-        for idx, tts_result in enumerate(tts_results):
-            tts_filename = f"tts_output_{idx}.wav"
-            with open(tts_filename, "wb") as ab:
-                for chunk in tts_result:
-                    ab.write(chunk)
-            tts_audio_files.append(tts_filename)
-            temp_files.append(tts_filename)
+        for idx, (params, res) in enumerate(zip(tts_params, tts_results)):
+            out_fp = res.write_audio_to_file(
+                filepath_no_ext=f'tts_output_{idx}', audio_format=params.output_format
+            )
+            tts_audio_files.append(out_fp)
+            temp_files.append(out_fp)
 
         return tts_audio_files, temp_files
 
@@ -294,7 +301,7 @@ class AudioGeneratorWithEffects:
                 return (tts_filename, [])
 
             async with semaphore:
-                sound_result = await sound_generation_consumed(params=sound_effects_params)
+                sound_result = await tts.sound_generation_consumed(params=sound_effects_params)
 
             # save to file
             with open(sound_effect_filename, "wb") as ab:
