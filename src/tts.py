@@ -28,9 +28,9 @@ def tts(voice_id: str, text: str):
 
 
 async def tts_astream(
-    voice_id: str, text: str, params: dict | None = None
+    voice_id: str, text: str, prev_text: str, next_text: str, params: dict | None = None
 ) -> t.AsyncIterator[bytes]:
-    params_all = dict(voice_id=voice_id, text=text)
+    params_all = dict(voice_id=voice_id, text=text, previous_text=prev_text, next_text=next_text)
 
     if params is not None:
         params_all["voice_settings"] = VoiceSettings(  # type: ignore
@@ -51,9 +51,9 @@ async def tts_astream(
 
 @auto_retry
 async def tts_astream_consumed(
-    voice_id: str, text: str, params: dict | None = None
+    voice_id: str, text: str, prev_text: str, next_text: str, params: dict | None = None
 ) -> list[bytes]:
-    aiterator = tts_astream(voice_id=voice_id, text=text, params=params)
+    aiterator = tts_astream(voice_id=voice_id, text=text, prev_text=prev_text, next_text=next_text, params=params)
     return [x async for x in aiterator]
 
 
