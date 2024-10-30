@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import List
 
 import gradio as gr
+from altair.vegalite.v5.theme import theme
 from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 
@@ -99,8 +100,13 @@ async def respond(
 {text_split_by_character}
 """
 
-    select_voice_chain_out = await builder.map_characters_to_voices(
-        text_split=text_split,
+    (
+        data_for_tts,
+        data_for_sound_effects,
+        select_voice_chain_out,
+        lines_for_sound_effect,
+    ) = await builder.prepare_text_for_tts_with_voice_mapping(
+        text_split, generate_effects
     )
 
     # Create voice mapping markdown
@@ -111,9 +117,9 @@ async def respond(
         result_voice_chain_out[key] = select_voice_chain_out.character2props.get(
             key, []
         ).model_dump()
-        result_voice_chain_out[key]["voice_id"] = (
-            select_voice_chain_out.character2voice.get(key, [])
-        )
+        result_voice_chain_out[key][
+            "voice_id"
+        ] = select_voice_chain_out.character2voice.get(key, [])
         result_voice_chain_out[key]["sample_audio_url"] = get_audio_from_voice_id(
             result_voice_chain_out[key]["voice_id"]
         )
@@ -142,8 +148,10 @@ async def respond(
 
     out_path = await builder.audio_generator.generate_audio(
         text_split=text_split,
+        data_for_tts=data_for_tts,
+        data_for_sound_effects=data_for_sound_effects,
         character_to_voice=select_voice_chain_out.character2voice,
-        generate_effects=generate_effects,
+        lines_for_sound_effect=lines_for_sound_effect,
     )
 
     yield out_path, "", f"""
@@ -260,4 +268,5 @@ with gr.Blocks(js=DESCRIPTION_JS, theme=GRADIO_THEME) as ui:
         outputs=error_output,
     )
 
-ui.launch(auth=get_auth_params())
+# ui.launch(auth=get_auth_params())
+ui.launch()
