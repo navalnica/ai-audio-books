@@ -1,6 +1,9 @@
+import asyncio
+
 from langchain_community.callbacks import get_openai_callback
 
 from src.audio_generators import AudioGeneratorWithEffects
+from src.config import OPENAI_MAX_PARALLEL
 from src.lc_callbacks import LCMessageLoggerAsync
 from src.select_voice_chain import SelectVoiceChainOutput, VoiceSelector
 from src.text_split_chain import SplitTextOutput, create_split_text_chain
@@ -8,7 +11,6 @@ from src.utils import GPTModels
 
 
 class AudiobookBuilder:
-
     def __init__(self):
         self.voice_selector = VoiceSelector()
         self.audio_generator = AudioGeneratorWithEffects()
@@ -37,15 +39,76 @@ class AudiobookBuilder:
             )
         return chain_out
 
+    async def prepare_text_for_tts_with_voice_mapping(
+        self, text_split: SplitTextOutput, generate_effects: bool
+    ):
+        lines_for_sound_effect = self.audio_generator.select_lines_for_sound_effect(
+            text_split, fraction=float(0.2 * generate_effects)
+        )
+
+        semaphore = asyncio.Semaphore(OPENAI_MAX_PARALLEL)
+
+        tasks = []
+        tasks.extend(
+            [
+                await self.audio_generator.create_emotion_text_task(
+                    semaphore, phrase.text
+                )
+                for phrase in text_split.phrases
+            ]
+        )
+
+        tasks.extend(
+            [
+                await self.audio_generator.create_effect_text_task(
+                    semaphore, text_split.phrases[idx].text
+                )
+                for idx in lines_for_sound_effect
+            ]
+        )
+
+        tasks.append(
+            asyncio.create_task(
+                self.audio_generator.process_single_task(
+                    semaphore=semaphore,
+                    func=self.map_characters_to_voices,
+                    text_split=text_split,
+                )
+            )
+        )
+
+        results = await asyncio.gather(*tasks)
+
+        prepared_texts = results[:-1]
+        voice_mapping = results[-1]
+
+        emotion_texts = [x.output for x in prepared_texts if x.task == "add_emotion"]
+        effects_texts = [x.output for x in prepared_texts if x.task == "add_effects"]
+
+        return (
+            emotion_texts,
+            effects_texts,
+            voice_mapping,
+            lines_for_sound_effect,
+        )
+
     async def run(self, text: str, *, generate_effects: bool):
         text_split = await self.split_text(text)
-        select_voice_chain_out = await self.map_characters_to_voices(
-            text_split=text_split
+
+        (
+            data_for_tts,
+            data_for_sound_effects,
+            select_voice_chain_out,
+            lines_for_sound_effect,
+        ) = await self.prepare_text_for_tts_with_voice_mapping(
+            text_split, generate_effects
         )
-        # TODO: show select_voice_chain_out.character2props on UI
+
         out_path = await self.audio_generator.generate_audio(
             text_split=text_split,
+            data_for_tts=data_for_tts,
+            data_for_sound_effects=data_for_sound_effects,
             character_to_voice=select_voice_chain_out.character2voice,
-            generate_effects=generate_effects,
+            lines_for_sound_effect=lines_for_sound_effect,
         )
         return out_path
