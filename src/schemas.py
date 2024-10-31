@@ -112,22 +112,45 @@ class TTSTimestampsAlignemnt(ExtraForbidModel):
         )
 
     @classmethod
-    def combine_alignments(cls, alignments: list[TTSTimestampsAlignemnt]) -> TTSTimestampsAlignemnt:
-        # NOTE: we assume alignments contain separators between them,
-        # i.e. combined characters from all alignments
-        # match original text that was split into chunks for TTS model.
+    def combine_alignments(
+        cls,
+        alignments: list[TTSTimestampsAlignemnt],
+        pause_bw_chunks_s: float = 0.2,
+    ) -> TTSTimestampsAlignemnt:
+        """
+        Combine alignemnts created for different TTS phrases in a single aligment for a whole text.
+
+        NOTE: while splitting original text into character phrases,
+        we ignore separators between phrases.
+        They may be different: single or multiple spaces, newlines, etc.
+        To account for them we insert fixed pause and characters between phrases in final alignment.
+        This will give use an approximation of a real timestamp mapping
+        for voicing a whole original text.
+
+        NOTE: The quality of such approximation seems appropriate,
+        considering the amount of time required to implement more accurate mapping.
+        """
 
         chars = []
         starts = []
         ends = []
         prev_chunk_end_time = 0.0
-        for a in alignments:
+        n_alignments = len(alignments)
+
+        for ix, a in enumerate(alignments):
             cur_starts_absolute = [prev_chunk_end_time + s for s in a.character_start_times_seconds]
             cur_ends_absolute = [prev_chunk_end_time + e for e in a.character_end_times_seconds]
 
             chars.extend(a.characters)
             starts.extend(cur_starts_absolute)
             ends.extend(cur_ends_absolute)
+
+            if ix < n_alignments - 1:
+                chars.append('#')
+                placeholder_start = cur_ends_absolute[-1]
+                starts.append(placeholder_start)
+                ends.append(placeholder_start + pause_bw_chunks_s)
+
             prev_chunk_end_time = ends[-1]
 
         return TTSTimestampsAlignemnt(
