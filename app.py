@@ -56,50 +56,101 @@ def load_text_from_file(uploaded_file):
 
 
 async def respond(
-    text: str,
-    uploaded_file,
-    generate_effects: bool,
+        text: str,
+        uploaded_file,
+        generate_effects: bool,
 ) -> tuple[Path | None, str, str]:
+    def get_character_color(character: str) -> str:
+        if not character or character == "Unassigned":
+            return "#808080"
+        colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEEAD", "#D4A5A5", "#9B59B6", "#3498DB"]
+        hash_val = sum(ord(c) for c in character)
+        return colors[hash_val % len(colors)]
+
+    def create_status_html(status: str, steps: list[tuple[str, bool]]) -> str:
+        steps_html = "\n".join([
+            f'<div class="step-item" style="display: flex; align-items: center; padding: 0.8rem; margin-bottom: 0.5rem; background-color: #3b4c63; border-radius: 6px; font-weight: 600;">'
+            f'<span class="step-icon" style="margin-right: 1rem; font-size: 1.3rem;">{("✅" if completed else "🔄")}</span>'
+            f'<span class="step-text" style="font-size: 1.1rem; color: #e0e0e0;">{step}</span>'
+            f'</div>'
+            for step, completed in steps
+        ])
+
+        return f'''
+        <div class="status-container" style="font-family: system-ui; max-width: 1472px; margin: 0 auto; background-color: #2e3b4e; padding: 1rem; border-radius: 8px; color: #f0f0f0;">
+            <div class="status-header" style="background: #3b4c63; padding: 1rem; border-radius: 8px; font-weight: bold;">
+                <h3 class="status-title" style="margin: 0; color: #ffffff; font-size: 1.5rem; font-weight: 700;">Status: {status}</h3>
+                <p class="status-description" style="margin: 0.5rem 0 0 0; color: #c0c0c0; font-size: 1rem; font-weight: 400;">Processing steps below.</p>
+            </div>
+            <div class="steps" style="margin-top: 1rem;">
+                {steps_html}
+        </div>
+        '''
+
+    # Error handling for file upload
     if uploaded_file is not None:
         try:
             text = load_text_from_file(uploaded_file=uploaded_file)
         except Exception as e:
             logger.exception(e)
-            yield None, str(e), "### Error\nFailed to process file."
+            yield None, str(e), create_status_html("Error",
+                                                    []) + '<div class="error-message" style="color: #e53e3e;">Failed to process file.</div></div>'
 
+    # Length check
     if (text_len := len(text)) > MAX_TEXT_LEN:
         gr.Warning(
             f"Input text length of {text_len} characters "
             f"exceeded current limit of {MAX_TEXT_LEN} characters. "
             "Please input a shorter text."
         )
-        yield None, "", "### Error\nText too long. Please input a shorter text."
+        yield None, "", create_status_html("Error",
+                                            []) + '<div class="error-message" style="color: #e53e3e;">Text too long. Please input a shorter text.</div></div>'
 
     # Initial status
-    yield None, "", """
-### Status: Starting Process
-🔄 Splitting text into characters...
-"""
+    yield None, "", create_status_html("Starting Process", [
+        ("Splitting text into characters...", False)
+    ]) + "</div>"
 
+    # Text splitting
     builder = AudiobookBuilder()
     text_split = await builder.split_text(text)
     text_split_dict_list = [item.model_dump() for item in text_split._phrases]
 
-    # Create character list markdown
-    text_split_by_character = "\n".join(
-        f"- **{item['character'] or 'Unassigned'}**: {item['text']}"
-        for item in text_split_dict_list
-    )
+    # Group texts by character
+    character_groups = {}
+    for item in text_split_dict_list:
+        char = item['character'] or 'Unassigned'
+        if char not in character_groups:
+            character_groups[char] = []
+        character_groups[char].append(item['text'])
 
-    yield None, "", f"""
-### Status: Text Analysis Complete
-✅ Text split into {len(text_split_dict_list)} segments
-🔄 Mapping characters to voices...
+    # Create character list HTML
+    text_split_html = ""
+    for character, texts in character_groups.items():
+        color = get_character_color(character)
+        text_split_html += f'''
+        <div class="character-group" style="margin-bottom: 1.5rem;" style="background-color: #3b4c63; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
+            <h4 style="color: {color}; font-weight: 600; margin-bottom: 0.5rem;">
+                {character}
+            </h4>
+            <ul style="list-style-type: disc; margin: 0; padding-left: 1.5rem;">
+                {"".join(f'<li style="margin-bottom: 0.25rem;">{text}</li>' for text in texts)}
+            </ul>
+        </div>
+        '''
 
-### {StatusSections.TEXT_SPLIT_BY_CHARACTER}:
-{text_split_by_character}
-"""
+    yield None, "", create_status_html("Text Analysis Complete", [
+        ("Text splitting", True),
+        ("Mapping characters to voices...", False)
+    ]) + f'''
+        <div class="section" style="background-color: #3b4c63; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
+            <h3 style="color: #ffffff; font-size: 1.15rem; margin-bottom: 1rem;">Text Split by Character:</h3>
+            {text_split_html}
+        </div>
+    </div>
+    '''
 
+    # Voice mapping
     (
         data_for_tts,
         data_for_sound_effects,
@@ -109,43 +160,57 @@ async def respond(
         text_split, generate_effects
     )
 
-    # Create voice mapping markdown
+    # Create voice mapping HTML
     result_voice_chain_out = {}
     for key in set(select_voice_chain_out.character2props) | set(
-        select_voice_chain_out.character2voice
+            select_voice_chain_out.character2voice
     ):
         result_voice_chain_out[key] = select_voice_chain_out.character2props.get(
             key, []
         ).model_dump()
-        result_voice_chain_out[key][
-            "voice_id"
-        ] = select_voice_chain_out.character2voice.get(key, [])
+        result_voice_chain_out[key]["voice_id"] = select_voice_chain_out.character2voice.get(key, [])
         result_voice_chain_out[key]["sample_audio_url"] = get_audio_from_voice_id(
             result_voice_chain_out[key]["voice_id"]
         )
 
-    mapping_md = "\n".join(
-        f"- **{character}** →"
-        f" **Gender**: {voice_properties.get('gender', None)}, "
-        f"**Age**: {voice_properties.get('age_group', None)}, "
-        f"**Voice ID**: {voice_properties.get('voice_id', None)} "
-        f"[<a href='#' class='audio-link' data-audio-url='{voice_properties.get('sample_audio_url', '')}'>Listen Preview 🔊</a>]"
-        for character, voice_properties in result_voice_chain_out.items()
-    )
+    voice_assignments_html = ""
+    for character, voice_properties in result_voice_chain_out.items():
+        color = get_character_color(character)
+        voice_assignments_html += f'''
+        <div class="voice-assignment" style="background-color: #3b4c63; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
+            <span style="color: {color}; font-weight: 600;">{character}</span>
+            <span style="margin: 0 0.5rem;">→</span>
+            <span style="color: #4a5568;">
+                <strong>Gender: {voice_properties.get('gender', 'N/A')}</strong> ,
+                <strong>Age: {voice_properties.get('age_group', 'N/A')}</strong> ,
+                <strong>Voice ID: {voice_properties.get('voice_id', 'N/A')}</strong> 
+            </span>
+            <a href="#" 
+               class="audio-link" 
+               data-audio-url="{voice_properties.get('sample_audio_url', '')}"
+               style="margin-left: 0.5rem; color: #4299e1; text-decoration: none;">
+               Listen Preview 🔊
+            </a>
+        </div>
+        '''
 
-    yield None, "", f"""
-### Status: Voice Mapping Complete
-✅ Text split into {len(text_split_dict_list)} segments
-✅ Voice mapping completed
-🔄 Generating audio...
+    yield None, "", create_status_html("Voice Mapping Complete", [
+        ("Text splitting", True),
+        ("Voice mapping", True),
+        ("Generating audio...", False)
+    ]) + f'''
+        <div class="section" style="background-color: #3b4c63; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
+            <h3 style="color: #ffffff; font-size: 1.15rem; margin-bottom: 1rem;">Text Split by Character:</h3>
+            {text_split_html}
+        </div>
+        <div class="section" style="background-color: #3b4c63; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
+            <h3 style="color: #ffffff; font-size: 1.15rem; margin-bottom: 1rem;">Voice Assignments:</h3>
+            {voice_assignments_html}
+        </div>
+    </div>
+    '''
 
-### {StatusSections.TEXT_SPLIT_BY_CHARACTER}:
-{text_split_by_character}
-
-### Voice Assignments:
-{mapping_md}
-"""
-
+    # Audio generation
     out_path = await builder.audio_generator.generate_audio(
         text_split=text_split,
         data_for_tts=data_for_tts,
@@ -154,20 +219,26 @@ async def respond(
         lines_for_sound_effect=lines_for_sound_effect,
     )
 
-    yield out_path, "", f"""
-### Status: Process Complete ✨
-✅ Text split into {len(text_split_dict_list)} segments
-✅ Voice mapping completed
-✅ Audio generation complete
-
-### {StatusSections.TEXT_SPLIT_BY_CHARACTER}:
-{text_split_by_character}
-
-### Voice Assignments:
-{mapping_md}
-
-### 🎉 Your audiobook is ready! Press play to listen.
-"""
+    yield out_path, "", create_status_html("Process Complete ✨", [
+        ("Text splitting", True),
+        ("Voice mapping", True),
+        ("Audio generation", True)
+    ]) + f'''
+        
+        <div class="section" style="background-color: #3b4c63; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
+            <h3 style=style="color: #ffffff; font-size: 1.15rem; margin-bottom: 1rem;">Text Split by Character:</h3>
+            {text_split_html}
+        </div>
+        <div class="section" style="background-color: #3b4c63; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
+            <h3 style=style="color: #ffffff; font-size: 1.15rem; margin-bottom: 1rem;">Voice Assignments:</h3>
+            {voice_assignments_html}
+        </div>
+        <div class="audiobook-ready" style="background-color: #3b4c63; padding: 1rem; border-radius: 8px; margin-top: 1rem; text-align: center;">
+                <h3 style="color: #ffffff; font-size: 1.25rem; margin-bottom: 0.5rem;">🎉 Your audiobook is ready!</h3>
+                <p style="color: #c0c0c0;">Press play to listen.</p>
+            </div>
+    </div>
+    '''
 
 
 def refresh():
@@ -218,11 +289,82 @@ with gr.Blocks(js=DESCRIPTION_JS, theme=GRADIO_THEME) as ui:
         refresh_button = gr.Button("Refresh", variant="secondary")
 
     # status panel
-    with gr.Row(variant="panel"):
-        status_display = gr.Markdown(
-            value="### Status: Waiting to Start\nEnter text or upload a file to begin.",
-            label="Generation Status",
-        )
+    status_display = gr.HTML(
+        value='''
+        <style>
+          .status-container {
+              font-family: system-ui;
+              max-width: 1472;
+              margin: 0 auto;
+              background-color: #2e3b4e; /* Darker background color */
+              padding: 1rem;
+              border-radius: 8px;
+              color: #f0f0f0; /* Light text color */
+          }
+          .status-header {
+              background: #3b4c63; /* Slightly lighter background */
+              padding: 1rem;
+              border-radius: 8px;
+              font-weight: bold; /* Emphasize header */
+          }
+          .status-title {
+              margin: 0;
+              color: #ffffff; /* White color for title */
+              font-size: 1.5rem; /* Larger title font */
+              font-weight: 700; /* Bold title */
+          }
+          .status-description {
+              margin: 0.5rem 0 0 0;
+              color: #c0c0c0;
+              font-size: 1rem;
+              font-weight: 400; /* Regular weight for description */
+          }
+          .steps {
+              margin-top: 1rem;
+          }
+          .step-item {
+              display: flex;
+              align-items: center;
+              padding: 0.8rem;
+              margin-bottom: 0.5rem;
+              background-color: #3b4c63; /* Matching background color */
+              border-radius: 6px;
+              color: #f0f0f0; /* Light text color */
+              font-weight: 600; /* Medium weight for steps */
+          }
+          .step-item:hover {
+              background-color: rgba(255, 255, 255, 0.07);
+          }
+          .step-icon {
+              margin-right: 1rem;
+              font-size: 1.3rem; /* Slightly larger icon size */
+          }
+          .step-text {
+              font-size: 1.1rem; /* Larger text for step description */
+              color: #e0e0e0; /* Lighter text for better readability */
+          }
+        </style>
+
+        <div class="status-container">
+            <div class="status-header">
+                <h3 class="status-title">Status: Waiting to Start</h3>
+                <p class="status-description">Enter text or upload a file to begin.</p>
+            </div>
+            <div class="steps">
+                <div class="step-item">
+                    <span class="step-icon">📚</span>
+                    <span class="step-text">Split text into characters</span>
+                </div>
+                <div class="step-item">
+                    <span class="step-icon">🎭</span>
+                    <span class="step-text">Assign each character a voice</span>
+                </div>
+                <!-- Add more steps as needed -->
+            </div>
+        </div>
+        ''',
+        label="Generation Status",
+    )
 
     submit_button.click(
         fn=respond,
