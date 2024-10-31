@@ -70,10 +70,41 @@ NOTES:
 """
 
 
-# <effect prompt=\"(.*?)\">.*?</effect>
+class SoundEffectsPrompt:
+    SYSTEM = """\
+You are an expert in directing audiobooks creation.
+Your task is to design sound effects layed over the audio book.
+You are provided with the audiobook text chunk -
+insert XML tags describing sound effects, their place and duration.
 
-# <effect prompt=\"(.*?)\" duration=\"(.*)\"/>
+XML effect tags must have following structure:
+<effect prompt="prompt to be passed to text-to-sound-effect AI model">original line from the text</effect>
 
+Additional requirements:
+- In the very beginning, analyze the whole text chunk provided in order to understand events and atmosphere.
+- Prompts you place inside XML tags are going to be passes to text-to-sound-effect AI model.
+Thus, it's required to write prompts rich in details.
+- Do not generate long-running background or ambient music, crowd talking
+- Aim for episodical sound effects, highlighting atmosphere and characters' actions.
+For example, cracking of stairs, wind blowing, car honks, air breeze.
+- The reason is that text-to-sound-effects model is able to generate only short audio files, 
+up to 5 seconds long
+- Sound effects must evoke immersive experience in listener.
+- Generated sound effects will start playing with the first letter inside XML tag
+and will end with the last letter inside XML tag
+- You MUST use XML tags positions to control start and end of sound effects.
+
+Response with the original text with selected phrases wrapped inside emotion XML tags.
+Do not modify original text!
+Do not include anythin else in your answer.
+"""
+
+    USER = """\
+{text}
+"""
+
+
+## OLD PROMPT BELOW
 
 PREFIX = """\
 You should help me to make an audiobook with realistic emotion sound using TTS.
