@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from typing import List
+import re
 
 import gradio as gr
 from altair.vegalite.v5.theme import theme
@@ -60,6 +61,7 @@ async def respond(
         uploaded_file,
         generate_effects: bool,
 ) -> tuple[Path | None, str, str]:
+
     def get_character_color(character: str) -> str:
         if not character or character == "Unassigned":
             return "#808080"
@@ -67,9 +69,14 @@ async def respond(
         hash_val = sum(ord(c) for c in character)
         return colors[hash_val % len(colors)]
 
+    # Function to replace 'c<number>' with 'Character<number>'
+    def replace_labels(text):
+        # Replace 'c<number>' with 'Character<number>'
+        return re.sub(r'\bc(\d+)\b', r'Character\1', text)
+
     def create_status_html(status: str, steps: list[tuple[str, bool]]) -> str:
         steps_html = "\n".join([
-            f'<div class="step-item" style="display: flex; align-items: center; padding: 0.8rem; margin-bottom: 0.5rem; background-color: #3b4c63; border-radius: 6px; font-weight: 600;">'
+            f'<div class="step-item" style="display: flex; align-items: center; padding: 0.8rem; margin-bottom: 0.5rem; background-color: #31395294; border-radius: 6px; font-weight: 600;">'
             f'<span class="step-icon" style="margin-right: 1rem; font-size: 1.3rem;">{("✅" if completed else "🔄")}</span>'
             f'<span class="step-text" style="font-size: 1.1rem; color: #e0e0e0;">{step}</span>'
             f'</div>'
@@ -77,9 +84,9 @@ async def respond(
         ])
 
         return f'''
-        <div class="status-container" style="font-family: system-ui; max-width: 1472px; margin: 0 auto; background-color: #2e3b4e; padding: 1rem; border-radius: 8px; color: #f0f0f0;">
-            <div class="status-header" style="background: #3b4c63; padding: 1rem; border-radius: 8px; font-weight: bold;">
-                <h3 class="status-title" style="margin: 0; color: #ffffff; font-size: 1.5rem; font-weight: 700;">Status: {status}</h3>
+        <div class="status-container" style="font-family: system-ui; max-width: 1472px; margin: 0 auto; background-color: #31395294; padding: 1rem; border-radius: 8px; color: #f0f0f0;">
+            <div class="status-header" style="background: #31395294; padding: 1rem; border-radius: 8px; font-weight: bold;">
+                <h3 class="status-title" style="margin: 0; color: rgb(224, 224, 224); font-size: 1.5rem; font-weight: 700;">Status: {status}</h3>
                 <p class="status-description" style="margin: 0.5rem 0 0 0; color: #c0c0c0; font-size: 1rem; font-weight: 400;">Processing steps below.</p>
             </div>
             <div class="steps" style="margin-top: 1rem;">
@@ -115,6 +122,9 @@ async def respond(
     builder = AudiobookBuilder()
     text_split = await builder.split_text(text)
     text_split_dict_list = [item.model_dump() for item in text_split._phrases]
+    # Replace 'c<number>' with 'Character<number>' in the character labels
+    for item in text_split_dict_list:
+        item['character'] = replace_labels(item['character'])
 
     # Group texts by character
     character_groups = {}
@@ -125,26 +135,39 @@ async def respond(
         character_groups[char].append(item['text'])
 
     # Create character list HTML
-    text_split_html = ""
-    for character, texts in character_groups.items():
+    legend_html = "<div style='margin-bottom: 1rem;'>"
+    legend_html += "<div style='font-size: 1.35em; font-weight: bold;'>Legend:</div>"
+
+    unique_characters = set(item['character'] or 'Unassigned' for item in text_split_dict_list)
+
+    for character in unique_characters:
         color = get_character_color(character)
-        text_split_html += f'''
-        <div class="character-group" style="margin-bottom: 1.5rem;" style="background-color: #3b4c63; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
-            <h4 style="color: {color}; font-weight: 600; margin-bottom: 0.5rem;">
-                {character}
-            </h4>
-            <ul style="list-style-type: disc; margin: 0; padding-left: 1.5rem;">
-                {"".join(f'<li style="margin-bottom: 0.25rem;">{text}</li>' for text in texts)}
-            </ul>
-        </div>
-        '''
+        # Set a slightly smaller font size for each character name
+        legend_html += f"<div style='color: {color}; font-size: 1.1em; margin-bottom: 0.25rem;'>{character}</div>"
+
+    legend_html += "</div>"
+
+    # Generate inline HTML for each character's phrase in the main text
+    text_split_html = "<div style='font-size: 1.2em; line-height: 1.6;'>"
+
+    for item in text_split_dict_list:
+        character = item['character'] or 'Unassigned'
+        text = item['text']
+        color = get_character_color(character)
+        # Add each phrase inline with character color
+        text_split_html += f"<span style='color: {color};'>{text}</span> "
+
+    text_split_html += "</div>"
+
+    # Combine legend and main text HTML
+    text_split_html = legend_html + text_split_html
 
     yield None, "", create_status_html("Text Analysis Complete", [
         ("Text splitting", True),
         ("Mapping characters to voices...", False)
     ]) + f'''
-        <div class="section" style="background-color: #3b4c63; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
-            <h3 style="color: #ffffff; font-size: 1.15rem; margin-bottom: 1rem;">Text Split by Character:</h3>
+        <div class="section" style="background-color: #31395294; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
+            <h3 style="color: rgb(224, 224, 224); font-size: 1.5em; margin-bottom: 1rem;">Text Split by Character:</h3>
             {text_split_html}
         </div>
     </div>
@@ -165,19 +188,18 @@ async def respond(
     for key in set(select_voice_chain_out.character2props) | set(
             select_voice_chain_out.character2voice
     ):
-        result_voice_chain_out[key] = select_voice_chain_out.character2props.get(
-            key, []
-        ).model_dump()
-        result_voice_chain_out[key]["voice_id"] = select_voice_chain_out.character2voice.get(key, [])
-        result_voice_chain_out[key]["sample_audio_url"] = get_audio_from_voice_id(
-            result_voice_chain_out[key]["voice_id"]
-        )
+        character_props = select_voice_chain_out.character2props.get(key, []).model_dump()
+        # Add voice_id and sample audio URL
+        character_props["voice_id"] = select_voice_chain_out.character2voice.get(key, [])
+        character_props["sample_audio_url"] = get_audio_from_voice_id(character_props["voice_id"])
+
+        result_voice_chain_out[replace_labels(key)] = character_props
 
     voice_assignments_html = ""
     for character, voice_properties in result_voice_chain_out.items():
         color = get_character_color(character)
         voice_assignments_html += f'''
-        <div class="voice-assignment" style="background-color: #3b4c63; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
+        <div class="voice-assignment" style="background-color: #31395294; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
             <span style="color: {color}; font-weight: 600;">{character}</span>
             <span style="margin: 0 0.5rem;">→</span>
             <span style="color: #4a5568;">
@@ -199,12 +221,12 @@ async def respond(
         ("Voice mapping", True),
         ("Generating audio...", False)
     ]) + f'''
-        <div class="section" style="background-color: #3b4c63; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
-            <h3 style="color: #ffffff; font-size: 1.15rem; margin-bottom: 1rem;">Text Split by Character:</h3>
+        <div class="section" style="background-color: #31395294; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
+            <h3 style="color: rgb(224, 224, 224); font-size: 1.5em; margin-bottom: 1rem;">Text Split by Character:</h3>
             {text_split_html}
         </div>
-        <div class="section" style="background-color: #3b4c63; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
-            <h3 style="color: #ffffff; font-size: 1.15rem; margin-bottom: 1rem;">Voice Assignments:</h3>
+        <div class="section" style="background-color: #31395294; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
+            <h3 style="color: rgb(224, 224, 224); font-size: 1.5em; margin-bottom: 1rem;">Voice Assignments:</h3>
             {voice_assignments_html}
         </div>
     </div>
@@ -225,17 +247,17 @@ async def respond(
         ("Audio generation", True)
     ]) + f'''
         
-        <div class="section" style="background-color: #3b4c63; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
-            <h3 style=style="color: #ffffff; font-size: 1.15rem; margin-bottom: 1rem;">Text Split by Character:</h3>
+        <div class="section" style="background-color: #31395294; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
+            <h3 style="color: rgb(224, 224, 224); font-size: 1.5em; margin-bottom: 1rem;">Text Split by Character:</h3>
             {text_split_html}
         </div>
-        <div class="section" style="background-color: #3b4c63; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
-            <h3 style=style="color: #ffffff; font-size: 1.15rem; margin-bottom: 1rem;">Voice Assignments:</h3>
+        <div class="section" style="background-color: #31395294; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
+            <h3 style="color: rgb(224, 224, 224); font-size: 1.5em; margin-bottom: 1rem;">Voice Assignments:</h3>
             {voice_assignments_html}
         </div>
-        <div class="audiobook-ready" style="background-color: #3b4c63; padding: 1rem; border-radius: 8px; margin-top: 1rem; text-align: center;">
-                <h3 style="color: #ffffff; font-size: 1.25rem; margin-bottom: 0.5rem;">🎉 Your audiobook is ready!</h3>
-                <p style="color: #c0c0c0;">Press play to listen.</p>
+        <div class="audiobook-ready" style="background-color: #31395294; padding: 1rem; border-radius: 8px; margin-top: 1rem; text-align: center;">
+                <h3 style="color: rgb(224, 224, 224); font-size: 1.5em; margin-bottom: 1rem;">🎉 Your audiobook is ready!</h3>
+                <p style="color: #4299e1; cursor: pointer;" onclick="document.querySelector('.play-pause-button.icon.svelte-ije4bl').click();">🔊 Press play to listen 🔊</p>
             </div>
     </div>
     '''
@@ -284,6 +306,21 @@ with gr.Blocks(js=DESCRIPTION_JS, theme=GRADIO_THEME) as ui:
         info="Select if you want to add occasional sound effect to the audiobook",
     )
 
+    # Add "Use my voice" button with the updated JavaScript
+    # with gr.Row(variant="panel"):
+    #     with gr.Column():
+    # use_voice_checkbox = gr.Checkbox(
+    #     label="Use my voice",
+    #     value=False,
+    #     info="Select if you want to use your voice for whole or part of the audiobook",
+    # )
+    # add_voice_btn = gr.Button(
+    #     "Add my voice",
+    #     variant="primary"
+    # )
+    #
+    # add_voice_btn.click(fn=None, inputs=None, outputs=None, js=VOICE_UPLOAD_JS)
+
     with gr.Row(variant="panel"):
         submit_button = gr.Button("Generate the audiobook", variant="primary")
         refresh_button = gr.Button("Refresh", variant="secondary")
@@ -296,20 +333,20 @@ with gr.Blocks(js=DESCRIPTION_JS, theme=GRADIO_THEME) as ui:
               font-family: system-ui;
               max-width: 1472;
               margin: 0 auto;
-              background-color: #2e3b4e; /* Darker background color */
+              background-color: #31395294; /* Darker background color */
               padding: 1rem;
               border-radius: 8px;
               color: #f0f0f0; /* Light text color */
           }
           .status-header {
-              background: #3b4c63; /* Slightly lighter background */
+              background: #31395294; /* Slightly lighter background */
               padding: 1rem;
               border-radius: 8px;
               font-weight: bold; /* Emphasize header */
           }
           .status-title {
               margin: 0;
-              color: #ffffff; /* White color for title */
+              color: rgb(224, 224, 224); /* White color for title */
               font-size: 1.5rem; /* Larger title font */
               font-weight: 700; /* Bold title */
           }
@@ -327,7 +364,7 @@ with gr.Blocks(js=DESCRIPTION_JS, theme=GRADIO_THEME) as ui:
               align-items: center;
               padding: 0.8rem;
               margin-bottom: 0.5rem;
-              background-color: #3b4c63; /* Matching background color */
+              background-color: #31395294; /* Matching background color */
               border-radius: 6px;
               color: #f0f0f0; /* Light text color */
               font-weight: 600; /* Medium weight for steps */
@@ -347,7 +384,7 @@ with gr.Blocks(js=DESCRIPTION_JS, theme=GRADIO_THEME) as ui:
 
         <div class="status-container">
             <div class="status-header">
-                <h3 class="status-title">Status: Waiting to Start</h3>
+                <h2 class="status-title">Status: Waiting to Start</h2>
                 <p class="status-description">Enter text or upload a file to begin.</p>
             </div>
             <div class="steps">
