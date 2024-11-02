@@ -13,10 +13,9 @@ from src.utils import get_audio_from_voice_id
 
 load_dotenv()
 
-from src.builder import AudiobookBuilder
-from src.config import logger, FILE_SIZE_MAX, MAX_TEXT_LEN, GRADIO_THEME, DESCRIPTION_JS, STATUS_DISPLAY_HTML, \
-    VOICE_UPLOAD_JS
 from data import samples_to_split as samples
+from src.builder import AudiobookBuilder
+from src.config import DESCRIPTION, FILE_SIZE_MAX, MAX_TEXT_LEN, logger
 
 from enum import StrEnum
 
@@ -43,9 +42,7 @@ def load_text_from_file(uploaded_file):
     temp_file_path = uploaded_file.name
 
     if os.path.getsize(temp_file_path) > FILE_SIZE_MAX * 1024 * 1024:
-        raise ValueError(
-            f"The uploaded file exceeds the size limit of {FILE_SIZE_MAX} MB."
-        )
+        raise ValueError(f"The uploaded file exceeds the size limit of {FILE_SIZE_MAX} MB.")
 
     if uploaded_file.name.endswith(".txt"):
         with open(temp_file_path, "r", encoding="utf-8") as file:

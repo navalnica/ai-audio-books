@@ -1,30 +1,19 @@
+from copy import deepcopy
 import typing as t
 
 from dotenv import load_dotenv
-from elevenlabs.client import AsyncElevenLabs, ElevenLabs
 from elevenlabs import VoiceSettings
+from elevenlabs.client import AsyncElevenLabs
 
 load_dotenv()
 
-from src.config import logger, ELEVENLABS_API_KEY
+from src.config import ELEVENLABS_API_KEY, logger
+from src.schemas import TTSParams, TTSTimestampsResponse, SoundEffectsParams
 from src.utils import auto_retry
-
-ELEVEN_CLIENT = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 
 ELEVEN_CLIENT_ASYNC = AsyncElevenLabs(api_key=ELEVENLABS_API_KEY)
 
-
-def tts_stream(voice_id: str, text: str) -> t.Iterator[bytes]:
-    async_iter = ELEVEN_CLIENT.text_to_speech.convert(voice_id=voice_id, text=text)
-    for chunk in async_iter:
-        if chunk:
-            yield chunk
-
-
-def tts(voice_id: str, text: str):
-    tts_iter = tts_stream(voice_id=voice_id, text=text)
-    combined = b"".join(tts_iter)
-    return combined
+# TODO: use TTSParams
 
 
 async def tts_astream(
@@ -57,19 +46,43 @@ async def tts_astream_consumed(
     return [x async for x in aiterator]
 
 
-async def sound_generation_astream(
-    sound_generation_data: dict,
-) -> t.AsyncIterator[bytes]:
-    text = sound_generation_data.pop("text")
+@auto_retry
+async def tts_w_timestamps(params: TTSParams) -> TTSTimestampsResponse:
+
+    async def _tts_w_timestamps(params: TTSParams) -> TTSTimestampsResponse:
+        # NOTE: we need to use special `to_dict()` method to ensure pydantic model is converted
+        # to dict with proper aliases
+        params_dict = params.to_dict()
+
+        params_no_text = deepcopy(params_dict)
+        text = params_no_text.pop('text')
+        logger.info(
+            f"request to 11labs TTS endpoint with params {params_no_text} "
+            f'for the following text: "{text}"'
+        )
+
+        response_raw = await ELEVEN_CLIENT_ASYNC.text_to_speech.convert_with_timestamps(
+            **params_dict
+        )
+
+        response_parsed = TTSTimestampsResponse.model_validate(response_raw)
+        return response_parsed
+
+    res = await _tts_w_timestamps(params=params)
+    return res
+
+
+async def sound_generation_astream(params: SoundEffectsParams) -> t.AsyncIterator[bytes]:
+    params_no_text = params.model_dump(exclude={"text"})
     logger.info(
-        f"request to 11labs sound effect generation with params {sound_generation_data} "
-        f'for the following text: "{text}"'
+        f"request to 11labs sound effect generation with params {params_no_text} "
+        f'for the following text: "{params.text}"'
     )
 
     async_iter = ELEVEN_CLIENT_ASYNC.text_to_sound_effects.convert(
-        text=text,
-        duration_seconds=sound_generation_data["duration_seconds"],
-        prompt_influence=sound_generation_data["prompt_influence"],
+        text=params.text,
+        duration_seconds=params.duration_seconds,
+        prompt_influence=params.prompt_influence,
     )
     async for chunk in async_iter:
         if chunk:
@@ -77,6 +90,6 @@ async def sound_generation_astream(
 
 
 @auto_retry
-async def sound_generation_consumed(sound_generation_data: dict):
-    aiterator = sound_generation_astream(sound_generation_data=sound_generation_data)
+async def sound_generation_consumed(params: SoundEffectsParams):
+    aiterator = sound_generation_astream(params=params)
     return [x async for x in aiterator]
