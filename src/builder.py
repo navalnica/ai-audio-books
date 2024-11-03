@@ -6,6 +6,8 @@ from src.audio_generators import AudioGeneratorWithEffects
 from src.config import OPENAI_MAX_PARALLEL
 from src.lc_callbacks import LCMessageLoggerAsync
 from src.select_voice_chain import SelectVoiceChainOutput, VoiceSelector, CharacterPropertiesNullable
+from src.sound_effects_design_chain import create_sound_effects_design_chain, SoundEffectDescription, \
+    SoundEffectsDesignOutput
 from src.text_split_chain import SplitTextOutput, create_split_text_chain
 from src.utils import GPTModels
 
@@ -38,10 +40,6 @@ class AudiobookBuilder:
     async def prepare_text_for_tts_with_voice_mapping(
         self, text_split: SplitTextOutput, generate_effects: bool, use_user_voice: bool, voice_id: str = None
     ):
-        lines_for_sound_effect = self.audio_generator.select_lines_for_sound_effect(
-            text_split, fraction=float(0.2 * generate_effects)
-        )
-
         semaphore = asyncio.Semaphore(OPENAI_MAX_PARALLEL)
 
         tasks = []
@@ -53,15 +51,12 @@ class AudiobookBuilder:
                 for phrase in text_split.phrases
             ]
         )
-
-        tasks.extend(
-            [
+        if generate_effects:
+            tasks.append(
                 await self.audio_generator.create_effect_text_task(
-                    semaphore, text_split.phrases[idx].text
+                    semaphore, '\n'.join([phrase.text for phrase in text_split.phrases])
                 )
-                for idx in lines_for_sound_effect
-            ]
-        )
+            )
 
         if not use_user_voice:
             tasks.append(
@@ -75,9 +70,11 @@ class AudiobookBuilder:
             )
 
         results = await asyncio.gather(*tasks)
+        effects: SoundEffectsDesignOutput = None
 
         if not use_user_voice:
-            prepared_texts = results[:-1]
+            prepared_texts = results[:-2]
+            effects = results[-2]
             voice_mapping = results[-1]
         else:
             prepared_texts = results
@@ -88,12 +85,20 @@ class AudiobookBuilder:
                 character2voice=character2voice
             )
 
-        emotion_texts = [x.output for x in prepared_texts if x.task == "add_emotion"]
-        effects_texts = [x.output for x in prepared_texts if x.task == "add_effects"]
+        emotion_texts = [x.output for x in prepared_texts if x.task == "tts"]
+        effects_texts = [effect.prompt for effect in effects.sound_effects_descriptions] if generate_effects else []
+        text_between_effects_texts = [effect.text_between_tags for effect in effects.sound_effects_descriptions] if generate_effects else []
+
+        lines_for_sound_effect = []
+        for text in text_between_effects_texts:
+            for i, phrase in enumerate(text_split.phrases):
+                if text.lower() in phrase.text.lower():
+                    lines_for_sound_effect.append(i)
 
         return (
             emotion_texts,
             effects_texts,
+            text_between_effects_texts,
             voice_mapping,
             lines_for_sound_effect,
         )
@@ -103,6 +108,7 @@ class AudiobookBuilder:
         (
             data_for_tts,
             data_for_sound_effects,
+            text_between_effects_texts,
             select_voice_chain_out,
             lines_for_sound_effect,
         ) = await self.prepare_text_for_tts_with_voice_mapping(

@@ -1,3 +1,4 @@
+import json
 import os
 from html.parser import HTMLParser
 from pathlib import Path
@@ -5,6 +6,7 @@ from typing import List
 import re
 
 import gradio as gr
+import openai
 from altair.vegalite.v5.theme import theme
 from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
@@ -15,7 +17,8 @@ load_dotenv()
 
 from data import samples_to_split as samples
 from src.builder import AudiobookBuilder
-from src.config import DESCRIPTION, FILE_SIZE_MAX, MAX_TEXT_LEN, logger
+from src.config import FILE_SIZE_MAX, MAX_TEXT_LEN, logger, VOICE_UPLOAD_JS, STATUS_DISPLAY_HTML, \
+    GRADIO_THEME, DESCRIPTION_JS, OPENAI_API_KEY
 
 from enum import StrEnum
 
@@ -54,6 +57,199 @@ def load_text_from_file(uploaded_file):
 
     return text
 
+def get_character_color(character: str) -> str:
+    if not character or character == "Unassigned":
+        return "#808080"
+    colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEEAD", "#D4A5A5", "#9B59B6", "#3498DB"]
+    hash_val = sum(ord(c) for c in character)
+    return colors[hash_val % len(colors)]
+
+# Function to replace 'c<number>' with 'Character<number>'
+def replace_labels(text):
+    # Replace 'c<number>' with 'Character<number>'
+    return re.sub(r'\bc(\d+)\b', r'Character\1', text)
+
+def hex_to_rgb(hex_color):
+    hex_color = hex_color.lstrip('#')
+    return f"{int(hex_color[0:2], 16)},{int(hex_color[2:4], 16)},{int(hex_color[4:6], 16)}"
+
+def create_status_html(status: str, steps: list[tuple[str, bool]]) -> str:
+    steps_html = "\n".join([
+        f'<div class="step-item" style="display: flex; align-items: center; padding: 0.8rem; margin-bottom: 0.5rem; background-color: #31395294; border-radius: 6px; font-weight: 600;">'
+        f'<span class="step-icon" style="margin-right: 1rem; font-size: 1.3rem;">{("✅" if completed else "🔄")}</span>'
+        f'<span class="step-text" style="font-size: 1.1rem; color: #e0e0e0;">{step}</span>'
+        f'</div>'
+        for step, completed in steps
+    ])
+
+    return f'''
+    <div class="status-container" style="font-family: system-ui; max-width: 1472px; margin: 0 auto; background-color: #31395294; padding: 1rem; border-radius: 8px; color: #f0f0f0;">
+        <div class="status-header" style="background: #31395294; padding: 1rem; border-radius: 8px; font-weight: bold;">
+            <h3 class="status-title" style="margin: 0; color: rgb(224, 224, 224); font-size: 1.5rem; font-weight: 700;">Status: {status}</h3>
+            <p class="status-description" style="margin: 0.5rem 0 0 0; color: #c0c0c0; font-size: 1rem; font-weight: 400;">Processing steps below.</p>
+        </div>
+        <div class="steps" style="margin-top: 1rem;">
+            {steps_html}
+    </div>
+    '''
+
+def generate_legend_for_text_split_html(text_split_dict_list: list[dict], add_effect_legend: bool = False) -> str:
+    legend_html = "<div style='margin-bottom: 1rem;'>"
+    legend_html += "<div style='font-size: 1.35em; font-weight: bold;'>Legend:</div>"
+
+    unique_characters = set(item['character'] or 'Unassigned' for item in text_split_dict_list)
+
+    for character in unique_characters:
+        color = get_character_color(character)
+        # Set a slightly smaller font size for each character name
+        legend_html += f"<div style='color: {color}; font-size: 1.1em; margin-bottom: 0.25rem;'>{character}</div>"
+    if add_effect_legend:
+        legend_html += f"<div style='color: #BBB951F7; font-size: 1.1em; margin-bottom: 0.25rem;'>Effects</div>"
+    legend_html += "</div>"
+    return legend_html
+
+def generate_text_split_without_effect_html(text_split_dict_list: list[dict]) -> str:
+    text_split_html = "<div style='font-size: 1.2em; line-height: 1.6;'>"
+
+    for item in text_split_dict_list:
+        character = item['character'] or 'Unassigned'
+        text = item['text']
+        color = get_character_color(character)
+        rgba_color = f"rgba({hex_to_rgb(color)}, 0.3)"
+        # Add each phrase inline with character color
+        text_split_html += f"<span style='background-color: {rgba_color}; padding: 0.2em; border-radius: 0.2em;'>{text}</span> "
+
+    text_split_html += "</div>"
+    return text_split_html
+
+def generate_full_text_split_without_effect_html(text_split_dict_list: list[dict]) -> str:
+    legend_html = generate_legend_for_text_split_html(text_split_dict_list)
+    text_split_html = generate_text_split_without_effect_html(text_split_dict_list)
+    return legend_html + text_split_html
+
+def generate_full_text_split_with_effect_html(
+        text_split_dict_list: list[dict],
+        text_with_effects: list[str],
+        text_between_effects_texts: list[str],
+) -> str:
+    css_styles = """
+    <style>
+            .text-effect-container {
+            font-size: 1.2em;
+            line-height: 1.6;
+        }
+
+        .character-segment {
+            padding: 0.2em;
+            border-radius: 0.2em;
+        }
+
+        .effect-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .effect-text {
+            background-color: rgba(187, 185, 81, 0.97);
+            padding: 2px 4px;
+            border-radius: 3px;
+            border-bottom: 2px dashed rgba(0, 0, 0, 0.83);
+            cursor: help;
+        }
+
+        .effect-tooltip {
+            visibility: hidden;
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 5px 10px;
+            border-radius: 6px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .effect-tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+
+        .effect-container:hover .effect-tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+    """
+
+    def create_effect_span(text: str, effect_description: str, bg_color: str) -> str:
+        """Create an HTML span with effect tooltip."""
+        return f"""
+            <span class="character-segment" style="background-color: {bg_color}">
+                <span class="effect-container">
+                    <span class="effect-text">{text}</span>
+                    <span class="effect-tooltip">Effect: {effect_description}</span>
+                </span>
+            </span>"""
+
+    def create_regular_span(text: str, bg_color: str) -> str:
+        """Create a regular HTML span with background color."""
+        return f'<span class="character-segment" style="background-color: {bg_color}">{text}</span>'
+
+    html_parts = []
+    effect_index = 0
+
+    for split_item in text_split_dict_list:
+        character = split_item['character'] or 'Unassigned'
+        text = split_item['text']
+        color = get_character_color(character)
+        rgba_color = f"rgba({hex_to_rgb(color)}, 0.3)"
+
+        if effect_index >= len(text_between_effects_texts) or text_between_effects_texts[
+            effect_index].lower() not in text.lower():
+            html_parts.append(create_regular_span(text, rgba_color))
+        else:
+            prev_end = 0
+            while effect_index < len(text_between_effects_texts) and text_between_effects_texts[
+                effect_index].lower() in text.lower():
+                effect_text = text_with_effects[effect_index]
+                text_between_effect_description = text_between_effects_texts[effect_index]
+
+                effect_start = text.lower().find(text_between_effect_description.lower())
+                effect_end = effect_start + len(effect_text)
+
+                html_parts.append(create_regular_span(
+                    text[prev_end:effect_start],
+                    rgba_color,
+                ))
+                html_parts.append(create_effect_span(
+                    text_between_effect_description,
+                    effect_text,
+                    rgba_color,
+                ))
+                effect_index += 1
+                prev_end = effect_end
+
+    legend_html = generate_legend_for_text_split_html(text_split_dict_list, add_effect_legend=True)
+
+    content_html = f"""
+    {css_styles}
+    <div class="text-effect-container">
+        {''.join(html_parts)}
+    </div>
+    """
+    return legend_html + content_html
+
 
 async def respond(
         text: str,
@@ -62,42 +258,6 @@ async def respond(
         use_user_voice: bool,
         voice_id: str = None,
 ) -> tuple[Path | None, str, str]:
-
-    def get_character_color(character: str) -> str:
-        if not character or character == "Unassigned":
-            return "#808080"
-        colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEEAD", "#D4A5A5", "#9B59B6", "#3498DB"]
-        hash_val = sum(ord(c) for c in character)
-        return colors[hash_val % len(colors)]
-
-    # Function to replace 'c<number>' with 'Character<number>'
-    def replace_labels(text):
-        # Replace 'c<number>' with 'Character<number>'
-        return re.sub(r'\bc(\d+)\b', r'Character\1', text)
-
-    def hex_to_rgb(hex_color):
-        hex_color = hex_color.lstrip('#')
-        return f"{int(hex_color[0:2], 16)},{int(hex_color[2:4], 16)},{int(hex_color[4:6], 16)}"
-
-    def create_status_html(status: str, steps: list[tuple[str, bool]]) -> str:
-        steps_html = "\n".join([
-            f'<div class="step-item" style="display: flex; align-items: center; padding: 0.8rem; margin-bottom: 0.5rem; background-color: #31395294; border-radius: 6px; font-weight: 600;">'
-            f'<span class="step-icon" style="margin-right: 1rem; font-size: 1.3rem;">{("✅" if completed else "🔄")}</span>'
-            f'<span class="step-text" style="font-size: 1.1rem; color: #e0e0e0;">{step}</span>'
-            f'</div>'
-            for step, completed in steps
-        ])
-
-        return f'''
-        <div class="status-container" style="font-family: system-ui; max-width: 1472px; margin: 0 auto; background-color: #31395294; padding: 1rem; border-radius: 8px; color: #f0f0f0;">
-            <div class="status-header" style="background: #31395294; padding: 1rem; border-radius: 8px; font-weight: bold;">
-                <h3 class="status-title" style="margin: 0; color: rgb(224, 224, 224); font-size: 1.5rem; font-weight: 700;">Status: {status}</h3>
-                <p class="status-description" style="margin: 0.5rem 0 0 0; color: #c0c0c0; font-size: 1rem; font-weight: 400;">Processing steps below.</p>
-            </div>
-            <div class="steps" style="margin-top: 1rem;">
-                {steps_html}
-        </div>
-        '''
 
     # Error handling for file upload
     if uploaded_file is not None:
@@ -142,42 +302,7 @@ async def respond(
         for item in text_split_dict_list:
             item['character'] = replace_labels(item['character'])
 
-        # Group texts by character
-        character_groups = {}
-        for item in text_split_dict_list:
-            char = item['character'] or 'Unassigned'
-            if char not in character_groups:
-                character_groups[char] = []
-            character_groups[char].append(item['text'])
-
-        # Create character list HTML
-        legend_html = "<div style='margin-bottom: 1rem;'>"
-        legend_html += "<div style='font-size: 1.35em; font-weight: bold;'>Legend:</div>"
-
-        unique_characters = set(item['character'] or 'Unassigned' for item in text_split_dict_list)
-
-        for character in unique_characters:
-            color = get_character_color(character)
-            # Set a slightly smaller font size for each character name
-            legend_html += f"<div style='color: {color}; font-size: 1.1em; margin-bottom: 0.25rem;'>{character}</div>"
-
-        legend_html += "</div>"
-
-        # Generate inline HTML for each character's phrase in the main text
-        text_split_html = "<div style='font-size: 1.2em; line-height: 1.6;'>"
-
-        for item in text_split_dict_list:
-            character = item['character'] or 'Unassigned'
-            text = item['text']
-            color = get_character_color(character)
-            rgba_color = f"rgba({hex_to_rgb(color)}, 0.3)"
-            # Add each phrase inline with character color
-            text_split_html += f"<span style='background-color: {rgba_color}; padding: 0.2em; border-radius: 0.2em;'>{text}</span> "
-
-        text_split_html += "</div>"
-
-        # Combine legend and main text HTML
-        text_split_html = legend_html + text_split_html
+        text_split_html = generate_full_text_split_without_effect_html(text_split_dict_list)
 
         yield None, "", create_status_html("Text Analysis Complete", [
             ("Text splitting", True),
@@ -194,11 +319,19 @@ async def respond(
         (
             data_for_tts,
             data_for_sound_effects,
+            text_between_effects_texts,
             select_voice_chain_out,
             lines_for_sound_effect,
         ) = await builder.prepare_text_for_tts_with_voice_mapping(
             text_split, generate_effects, use_user_voice
         )
+
+        if generate_effects:
+            text_split_html = generate_full_text_split_with_effect_html(
+                text_split_dict_list,
+                data_for_sound_effects,
+                text_between_effects_texts,
+            )
 
         # Create voice mapping HTML
         result_voice_chain_out = {}
@@ -339,10 +472,6 @@ with gr.Blocks(js=DESCRIPTION_JS, theme=GRADIO_THEME) as ui:
         refresh_button = gr.Button("Refresh", variant="secondary")
 
     voice_result = gr.Textbox(visible=False, interactive=False, label="Processed Result")
-    def process_js_output(value_from_js):
-        return value_from_js
-
-    # status panel
     status_display = gr.HTML(
         value=STATUS_DISPLAY_HTML,
         label="Generation Status"
