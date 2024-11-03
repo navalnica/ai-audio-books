@@ -14,6 +14,7 @@ from src.schemas import SoundEffectsParams, TTSParams, TTSTimestampsResponse
 from src.select_voice_chain import SelectVoiceChainOutput, VoiceSelector
 from src.text_split_chain import SplitTextOutput, create_split_text_chain
 from src.utils import GPTModels
+from src.sound_effects_design import create_sound_effects_design_chain, SoundEffectsDesignOutput
 
 
 class AudiobookBuilder:
@@ -24,7 +25,8 @@ class AudiobookBuilder:
         self.rm_artifacts = rm_artifacts
         self.name = type(self).__name__
 
-    async def _split_text(self, text: str) -> SplitTextOutput:
+    @staticmethod
+    async def _split_text(text: str) -> SplitTextOutput:
         chain = create_split_text_chain(llm_model=GPTModels.GPT_4o)
         with get_openai_callback() as cb:
             chain_out = await chain.ainvoke(
@@ -32,6 +34,19 @@ class AudiobookBuilder:
             )
         logger.info(f'end of splitting text into characters. openai callback stats: {cb}')
         return chain_out
+
+    @staticmethod
+    async def _design_sound_effects(text: str) -> SoundEffectsDesignOutput:
+        chain = create_sound_effects_design_chain(llm_model=GPTModels.GPT_4o)
+        with get_openai_callback() as cb:
+            res = await chain.ainvoke(
+                {"text": text}, config={"callbacks": [LCMessageLoggerAsync()]}
+            )
+        logger.info(
+            f'designed {len(res.sound_effects_descriptions)} sound effects. '
+            f'openai callback stats: {cb}'
+        )
+        return res
 
     async def _map_characters_to_voices(
         self, text_split: SplitTextOutput
@@ -192,7 +207,8 @@ class AudiobookBuilder:
             # I think it will be more efficient to keep all audio in memory.
 
             # TODO: call sound effects chain in parallel with this chain
-            text_split = await self._split_text(text)
+            text_split = await self._split_text(text=text)
+            designed_sound_effects = await self._design_sound_effects(text=text)
 
             select_voice_chain_out = await self._map_characters_to_voices(text_split=text_split)
             character_to_voice = select_voice_chain_out.character2voice

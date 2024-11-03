@@ -162,10 +162,26 @@ class TTSTimestampsAlignemnt(ExtraForbidModel):
             character_end_times_seconds=ends,
         )
 
-    def get_start_time_by_char_ix(self, char_ix: int):
+    @staticmethod
+    def _get_safe_index(ix: int, collection: list):
+        res = min(ix, len(collection) - 1)
+        res = max(0, res)
+        return res
+
+    def get_start_time_by_char_ix(self, char_ix: int, safe=True):
+        if safe:
+            char_ix = self._get_safe_index(
+                ix=char_ix,
+                collection=self.character_start_times_seconds,
+            )
         return self.character_start_times_seconds[char_ix]
 
-    def get_end_time_by_char_ix(self, char_ix: int):
+    def get_end_time_by_char_ix(self, char_ix: int, safe=True):
+        if safe:
+            char_ix = self._get_safe_index(
+                ix=char_ix,
+                collection=self.character_end_times_seconds,
+            )
         return self.character_end_times_seconds[char_ix]
 
 
