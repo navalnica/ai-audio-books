@@ -75,7 +75,7 @@ def add_overlay_for_audio(
     sound_effect_filename: str,
     output_filename: str | None = None,
     cycling_effect: bool = True,
-    decrease_effect_volume: int = 0,
+    effect_volume: int = 0,
 ) -> str:
     try:
         main_audio = AudioSegment.from_file(main_audio_filename)
@@ -89,8 +89,8 @@ def add_overlay_for_audio(
 
     effect_audio = effect_audio[: len(main_audio)]
 
-    if decrease_effect_volume > 0:
-        effect_audio = effect_audio - decrease_effect_volume
+    if effect_volume:
+        effect_audio = effect_audio + effect_volume
     combined_audio = main_audio.overlay(effect_audio)
 
     if output_filename is None:
