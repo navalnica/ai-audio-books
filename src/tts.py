@@ -42,13 +42,14 @@ async def tts_astream(
 async def tts_astream_consumed(
     voice_id: str, text: str, prev_text: str, next_text: str, params: dict | None = None
 ) -> list[bytes]:
-    aiterator = tts_astream(voice_id=voice_id, text=text, prev_text=prev_text, next_text=next_text, params=params)
+    aiterator = tts_astream(
+        voice_id=voice_id, text=text, prev_text=prev_text, next_text=next_text, params=params
+    )
     return [x async for x in aiterator]
 
 
 @auto_retry
 async def tts_w_timestamps(params: TTSParams) -> TTSTimestampsResponse:
-
     async def _tts_w_timestamps(params: TTSParams) -> TTSTimestampsResponse:
         # NOTE: we need to use special `to_dict()` method to ensure pydantic model is converted
         # to dict with proper aliases

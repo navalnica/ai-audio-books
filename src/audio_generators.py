@@ -22,6 +22,7 @@ from src.config import ELEVENLABS_MAX_PARALLEL, OPENAI_API_KEY, OPENAI_MAX_PARAL
 from src.schemas import SoundEffectsParams, TTSTimestampsResponse, TTSParams
 from elevenlabs import VoiceSettings
 from src.tts import tts_astream_consumed, sound_generation_consumed
+
 # from src.emotions.generation import (
 #     EffectGeneratorAsync,
 #     TextPreparationForTTSTaskOutput,
@@ -38,8 +39,11 @@ from .prompts import (
     SOUND_EFFECT_GENERATION_WITHOUT_DURATION_PREDICTION,
     TEXT_MODIFICATION_WITH_SSML,
 )
-from .sound_effects_design_chain import create_sound_effects_design_chain, SoundEffectDescription, \
-    SoundEffectsDesignOutput
+from .sound_effects_design_chain import (
+    create_sound_effects_design_chain,
+    SoundEffectDescription,
+    SoundEffectsDesignOutput,
+)
 
 
 class AudioGeneratorSimple:
@@ -210,9 +214,7 @@ class AudioGeneratorWithEffects:
         async with semaphore:
             return await func(**params)
 
-    def save_audio_stream(
-        self, audio_stream: Iterator[bytes], prefix: str, idx: str
-    ) -> str:
+    def save_audio_stream(self, audio_stream: Iterator[bytes], prefix: str, idx: str) -> str:
         filename = f"{prefix}_{idx}.wav"
         with open(filename, "wb") as f:
             for chunk in audio_stream:
@@ -234,9 +236,7 @@ class AudioGeneratorWithEffects:
     async def generate_sound_effects(self, text: str) -> SoundEffectsDesignOutput:
         chain = create_sound_effects_design_chain(llm_model=GPTModels.GPT_4o)
         with get_openai_callback() as cb:
-            res = chain.invoke(
-                {"text": text}, config={"callbacks": [LCMessageLoggerAsync()]}
-            )
+            res = chain.invoke({"text": text}, config={"callbacks": [LCMessageLoggerAsync()]})
         return res
 
     async def create_effect_text_task(
@@ -264,8 +264,8 @@ class AudioGeneratorWithEffects:
         )
 
         return audio_stream.write_audio_to_file(
-                filepath_no_ext=f'tts_output_{idx}', audio_format=params.output_format
-            )
+            filepath_no_ext=f'tts_output_{idx}', audio_format=params.output_format
+        )
 
     async def _create_tts_task(
         self,
@@ -274,9 +274,7 @@ class AudioGeneratorWithEffects:
         idx: int,
     ) -> asyncio.Task:
         """Create a TTS generation task."""
-        return asyncio.create_task(
-            self._process_tts(semaphore, params, idx)
-        )
+        return asyncio.create_task(self._process_tts(semaphore, params, idx))
 
     async def _process_sound_effect(
         self, semaphore: asyncio.Semaphore, params: SoundEffectsParams, idx: str
@@ -288,19 +286,17 @@ class AudioGeneratorWithEffects:
             params=params,
         )
 
-        return self.save_audio_stream(
-            audio_stream=audio_stream, prefix="sound_effect", idx=idx
-        )
+        return self.save_audio_stream(audio_stream=audio_stream, prefix="sound_effect", idx=idx)
 
     async def _create_sound_effect_task(
         self, semaphore: asyncio.Semaphore, params: SoundEffectsParams, idx: str
     ) -> asyncio.Task:
         """Create a sound effect generation task."""
-        return asyncio.create_task(
-            self._process_sound_effect(semaphore, params, idx)
-        )
+        return asyncio.create_task(self._process_sound_effect(semaphore, params, idx))
 
-    def get_context_texts(self, items: list[dict], current_idx: int, window: int = 2) -> tuple[str, str]:
+    def get_context_texts(
+        self, items: list[dict], current_idx: int, window: int = 2
+    ) -> tuple[str, str]:
         prev_texts = []
         next_texts = []
 
@@ -344,15 +340,13 @@ class AudioGeneratorWithEffects:
                                 similarity_boost=data_item["params"].get("similarity_boost"),
                                 style=data_item["params"].get("style"),
                                 use_speaker_boost=True,
-                            )
+                            ),
                         ),
                         idx=idx,
                     ),
                     name=f"tts_{idx}",
                 )
-                for idx, (data_item, phrase) in enumerate(
-                    zip(data_for_tts, text_split.phrases)
-                )
+                for idx, (data_item, phrase) in enumerate(zip(data_for_tts, text_split.phrases))
             ]
         tts_results = [task.result() for task in tts_tasks]
 
@@ -372,11 +366,11 @@ class AudioGeneratorWithEffects:
                         params=SoundEffectsParams(
                             text=data_for_sound_effects[i],
                             duration_seconds=duration,
-                            prompt_influence=0.6
+                            prompt_influence=0.6,
                         ),
-                        idx=f"{idx}_{current_counts[idx]}"
+                        idx=f"{idx}_{current_counts[idx]}",
                     ),
-                    name=f"effect_{idx}_{current_counts[idx]}"
+                    name=f"effect_{idx}_{current_counts[idx]}",
                 )
                 effect_tasks.append(task)
 

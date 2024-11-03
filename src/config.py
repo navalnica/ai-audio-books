@@ -270,7 +270,6 @@ STATUS_DISPLAY_HTML = '''
 GRADIO_THEME = "freddyaboulton/dracula_revamped"
 
 
-
 VOICE_UPLOAD_JS = f"""
 async function createVoiceUploadPopup() {{
     try {{

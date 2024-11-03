@@ -1,13 +1,9 @@
-import json
 import os
-from html.parser import HTMLParser
 from pathlib import Path
 from typing import List
 import re
 
 import gradio as gr
-import openai
-from altair.vegalite.v5.theme import theme
 from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 
@@ -17,8 +13,15 @@ load_dotenv()
 
 from data import samples_to_split as samples
 from src.builder import AudiobookBuilder
-from src.config import FILE_SIZE_MAX, MAX_TEXT_LEN, logger, VOICE_UPLOAD_JS, STATUS_DISPLAY_HTML, \
-    GRADIO_THEME, DESCRIPTION_JS, OPENAI_API_KEY
+from src.config import (
+    FILE_SIZE_MAX,
+    MAX_TEXT_LEN,
+    logger,
+    VOICE_UPLOAD_JS,
+    STATUS_DISPLAY_HTML,
+    GRADIO_THEME,
+    DESCRIPTION_JS,
+)
 
 from enum import StrEnum
 
@@ -57,30 +60,45 @@ def load_text_from_file(uploaded_file):
 
     return text
 
+
 def get_character_color(character: str) -> str:
     if not character or character == "Unassigned":
         return "#808080"
-    colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEEAD", "#D4A5A5", "#9B59B6", "#3498DB"]
+    colors = [
+        "#FF6B6B",
+        "#4ECDC4",
+        "#45B7D1",
+        "#96CEB4",
+        "#FFEEAD",
+        "#D4A5A5",
+        "#9B59B6",
+        "#3498DB",
+    ]
     hash_val = sum(ord(c) for c in character)
     return colors[hash_val % len(colors)]
+
 
 # Function to replace 'c<number>' with 'Character<number>'
 def replace_labels(text):
     # Replace 'c<number>' with 'Character<number>'
     return re.sub(r'\bc(\d+)\b', r'Character\1', text)
 
+
 def hex_to_rgb(hex_color):
     hex_color = hex_color.lstrip('#')
     return f"{int(hex_color[0:2], 16)},{int(hex_color[2:4], 16)},{int(hex_color[4:6], 16)}"
 
+
 def create_status_html(status: str, steps: list[tuple[str, bool]]) -> str:
-    steps_html = "\n".join([
-        f'<div class="step-item" style="display: flex; align-items: center; padding: 0.8rem; margin-bottom: 0.5rem; background-color: #31395294; border-radius: 6px; font-weight: 600;">'
-        f'<span class="step-icon" style="margin-right: 1rem; font-size: 1.3rem;">{("✅" if completed else "🔄")}</span>'
-        f'<span class="step-text" style="font-size: 1.1rem; color: #e0e0e0;">{step}</span>'
-        f'</div>'
-        for step, completed in steps
-    ])
+    steps_html = "\n".join(
+        [
+            f'<div class="step-item" style="display: flex; align-items: center; padding: 0.8rem; margin-bottom: 0.5rem; background-color: #31395294; border-radius: 6px; font-weight: 600;">'
+            f'<span class="step-icon" style="margin-right: 1rem; font-size: 1.3rem;">{("✅" if completed else "🔄")}</span>'
+            f'<span class="step-text" style="font-size: 1.1rem; color: #e0e0e0;">{step}</span>'
+            f'</div>'
+            for step, completed in steps
+        ]
+    )
 
     return f'''
     <div class="status-container" style="font-family: system-ui; max-width: 1472px; margin: 0 auto; background-color: #31395294; padding: 1rem; border-radius: 8px; color: #f0f0f0;">
@@ -93,7 +111,10 @@ def create_status_html(status: str, steps: list[tuple[str, bool]]) -> str:
     </div>
     '''
 
-def generate_legend_for_text_split_html(text_split_dict_list: list[dict], add_effect_legend: bool = False) -> str:
+
+def generate_legend_for_text_split_html(
+    text_split_dict_list: list[dict], add_effect_legend: bool = False
+) -> str:
     legend_html = "<div style='margin-bottom: 1rem;'>"
     legend_html += "<div style='font-size: 1.35em; font-weight: bold;'>Legend:</div>"
 
@@ -107,6 +128,7 @@ def generate_legend_for_text_split_html(text_split_dict_list: list[dict], add_ef
         legend_html += f"<div style='color: #BBB951F7; font-size: 1.1em; margin-bottom: 0.25rem;'>Effects</div>"
     legend_html += "</div>"
     return legend_html
+
 
 def generate_text_split_without_effect_html(text_split_dict_list: list[dict]) -> str:
     text_split_html = "<div style='font-size: 1.2em; line-height: 1.6;'>"
@@ -122,15 +144,17 @@ def generate_text_split_without_effect_html(text_split_dict_list: list[dict]) ->
     text_split_html += "</div>"
     return text_split_html
 
+
 def generate_full_text_split_without_effect_html(text_split_dict_list: list[dict]) -> str:
     legend_html = generate_legend_for_text_split_html(text_split_dict_list)
     text_split_html = generate_text_split_without_effect_html(text_split_dict_list)
     return legend_html + text_split_html
 
+
 def generate_full_text_split_with_effect_html(
-        text_split_dict_list: list[dict],
-        text_with_effects: list[str],
-        text_between_effects_texts: list[str],
+    text_split_dict_list: list[dict],
+    text_with_effects: list[str],
+    text_between_effects_texts: list[str],
 ) -> str:
     css_styles = """
     <style>
@@ -215,28 +239,36 @@ def generate_full_text_split_with_effect_html(
         color = get_character_color(character)
         rgba_color = f"rgba({hex_to_rgb(color)}, 0.3)"
 
-        if effect_index >= len(text_between_effects_texts) or text_between_effects_texts[
-            effect_index].lower() not in text.lower():
+        if (
+            effect_index >= len(text_between_effects_texts)
+            or text_between_effects_texts[effect_index].lower() not in text.lower()
+        ):
             html_parts.append(create_regular_span(text, rgba_color))
         else:
             prev_end = 0
-            while effect_index < len(text_between_effects_texts) and text_between_effects_texts[
-                effect_index].lower() in text.lower():
+            while (
+                effect_index < len(text_between_effects_texts)
+                and text_between_effects_texts[effect_index].lower() in text.lower()
+            ):
                 effect_text = text_with_effects[effect_index]
                 text_between_effect_description = text_between_effects_texts[effect_index]
 
                 effect_start = text.lower().find(text_between_effect_description.lower())
                 effect_end = effect_start + len(text_between_effect_description)
 
-                html_parts.append(create_regular_span(
-                    text[prev_end:effect_start],
-                    rgba_color,
-                ))
-                html_parts.append(create_effect_span(
-                    text_between_effect_description,
-                    effect_text,
-                    rgba_color,
-                ))
+                html_parts.append(
+                    create_regular_span(
+                        text[prev_end:effect_start],
+                        rgba_color,
+                    )
+                )
+                html_parts.append(
+                    create_effect_span(
+                        text_between_effect_description,
+                        effect_text,
+                        rgba_color,
+                    )
+                )
                 effect_index += 1
                 prev_end = effect_end
 
@@ -252,21 +284,21 @@ def generate_full_text_split_with_effect_html(
 
 
 async def respond(
-        text: str,
-        uploaded_file,
-        generate_effects: bool,
-        use_user_voice: bool,
-        voice_id: str = None,
+    text: str,
+    uploaded_file,
+    generate_effects: bool,
+    use_user_voice: bool,
+    voice_id: str = None,
 ) -> tuple[Path | None, str, str]:
-
     # Error handling for file upload
     if uploaded_file is not None:
         try:
             text = load_text_from_file(uploaded_file=uploaded_file)
         except Exception as e:
             logger.exception(e)
-            yield None, str(e), create_status_html("Error",
-                                                    []) + '<div class="error-message" style="color: #e53e3e;">Failed to process file.</div></div>'
+            yield None, str(e), create_status_html(
+                "Error", []
+            ) + '<div class="error-message" style="color: #e53e3e;">Failed to process file.</div></div>'
 
     # Length check
     if (text_len := len(text)) > MAX_TEXT_LEN:
@@ -275,12 +307,18 @@ async def respond(
             f"exceeded current limit of {MAX_TEXT_LEN} characters. "
             "Please input a shorter text."
         )
-        yield None, "", create_status_html("Error",
-                                            []) + '<div class="error-message" style="color: #e53e3e;">Text too long. Please input a shorter text.</div></div>'
+        yield None, "", create_status_html(
+            "Error", []
+        ) + '<div class="error-message" style="color: #e53e3e;">Text too long. Please input a shorter text.</div></div>'
     builder = AudiobookBuilder()
     if use_user_voice:
         if voice_id:
-            out_path = await builder.run(text=text, generate_effects=generate_effects, use_user_voice=use_user_voice, voice_id=voice_id)
+            out_path = await builder.run(
+                text=text,
+                generate_effects=generate_effects,
+                use_user_voice=use_user_voice,
+                voice_id=voice_id,
+            )
             yield out_path, "", """<div class="audiobook-ready" style="background-color: #31395294; padding: 1rem; border-radius: 8px; margin-top: 1rem; text-align: center;">
                     <h3 style="color: rgb(224, 224, 224); font-size: 1.5em; margin-bottom: 1rem;">🎉 Your audiobook is ready!</h3>
                     <p style="color: #4299e1; cursor: pointer;" onclick="document.querySelector('.play-pause-button.icon.svelte-ije4bl').click();">🔊 Press play to listen 🔊</p>
@@ -292,9 +330,9 @@ async def respond(
 
     else:
         # Initial status
-        yield None, "", create_status_html("Starting Process", [
-            ("Splitting text into characters...", False)
-        ]) + "</div>"
+        yield None, "", create_status_html(
+            "Starting Process", [("Splitting text into characters...", False)]
+        ) + "</div>"
 
         text_split = await builder.split_text(text)
         text_split_dict_list = [item.model_dump() for item in text_split._phrases]
@@ -304,10 +342,10 @@ async def respond(
 
         text_split_html = generate_full_text_split_without_effect_html(text_split_dict_list)
 
-        yield None, "", create_status_html("Text Analysis Complete", [
-            ("Text splitting", True),
-            ("Mapping characters to voices...", False)
-        ]) + f'''
+        yield None, "", create_status_html(
+            "Text Analysis Complete",
+            [("Text splitting", True), ("Mapping characters to voices...", False)],
+        ) + f'''
             <div class="section" style="background-color: #31395294; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
                 <h3 style="color: rgb(224, 224, 224); font-size: 1.5em; margin-bottom: 1rem;">Text Split by Character:</h3>
                 {text_split_html}
@@ -336,12 +374,14 @@ async def respond(
         # Create voice mapping HTML
         result_voice_chain_out = {}
         for key in set(select_voice_chain_out.character2props) | set(
-                select_voice_chain_out.character2voice
+            select_voice_chain_out.character2voice
         ):
             character_props = select_voice_chain_out.character2props.get(key, []).model_dump()
             # Add voice_id and sample audio URL
             character_props["voice_id"] = select_voice_chain_out.character2voice.get(key, [])
-            character_props["sample_audio_url"] = get_audio_from_voice_id(character_props["voice_id"])
+            character_props["sample_audio_url"] = get_audio_from_voice_id(
+                character_props["voice_id"]
+            )
 
             result_voice_chain_out[replace_labels(key)] = character_props
 
@@ -366,11 +406,10 @@ async def respond(
             </div>
             '''
 
-        yield None, "", create_status_html("Voice Mapping Complete", [
-            ("Text splitting", True),
-            ("Voice mapping", True),
-            ("Generating audio...", False)
-        ]) + f'''
+        yield None, "", create_status_html(
+            "Voice Mapping Complete",
+            [("Text splitting", True), ("Voice mapping", True), ("Generating audio...", False)],
+        ) + f'''
             <div class="section" style="background-color: #31395294; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
                 <h3 style="color: rgb(224, 224, 224); font-size: 1.5em; margin-bottom: 1rem;">Text Split by Character:</h3>
                 {text_split_html}
@@ -391,11 +430,10 @@ async def respond(
             lines_for_sound_effect=lines_for_sound_effect,
         )
 
-        yield out_path, "", create_status_html("Process Complete ✨", [
-            ("Text splitting", True),
-            ("Voice mapping", True),
-            ("Audio generation", True)
-        ]) + f'''
+        yield out_path, "", create_status_html(
+            "Process Complete ✨",
+            [("Text splitting", True), ("Voice mapping", True), ("Audio generation", True)],
+        ) + f'''
             
             <div class="section" style="background-color: #31395294; padding: 1rem; border-radius: 8px; margin-top: 1rem; color: #e0e0e0;">
                 <h3 style="color: rgb(224, 224, 224); font-size: 1.5em; margin-bottom: 1rem;">Text Split by Character:</h3>
@@ -465,17 +503,11 @@ with gr.Blocks(js=DESCRIPTION_JS, theme=GRADIO_THEME) as ui:
     submit_button = gr.Button("Generate the audiobook", variant="primary")
 
     with gr.Row(variant="panel"):
-        add_voice_btn = gr.Button(
-            "Add my voice",
-            variant="primary"
-        )
+        add_voice_btn = gr.Button("Add my voice", variant="primary")
         refresh_button = gr.Button("Refresh", variant="secondary")
 
     voice_result = gr.Textbox(visible=False, interactive=False, label="Processed Result")
-    status_display = gr.HTML(
-        value=STATUS_DISPLAY_HTML,
-        label="Generation Status"
-    )
+    status_display = gr.HTML(value=STATUS_DISPLAY_HTML, label="Generation Status")
 
     add_voice_btn.click(fn=None, inputs=None, outputs=voice_result, js=VOICE_UPLOAD_JS)
     submit_button.click(
@@ -485,7 +517,7 @@ with gr.Blocks(js=DESCRIPTION_JS, theme=GRADIO_THEME) as ui:
             file_input,
             effects_generation_checkbox,
             use_voice_checkbox,
-            voice_result
+            voice_result,
         ],  # Include the uploaded file as an input
         outputs=[
             audio_output,

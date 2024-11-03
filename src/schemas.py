@@ -36,7 +36,6 @@ OMIT = t.cast(t.Any, ...)
 
 
 class TTSParams(ExtraForbidModel):
-
     # NOTE: pydantic treats Ellipsis as a mark of a required field.
     # in order to set Ellipsis as actual field default value, we need to use workaround
     # and use Field's default_factory

@@ -18,7 +18,6 @@ from tenacity import (
 )
 
 
-
 class GPTModels(StrEnum):
     GPT_4o = "gpt-4o"
     GPT_4o_MINI = "gpt-4o-mini"
@@ -98,7 +97,9 @@ def add_overlay_for_audio(
     combined_audio.export(output_filename, format="wav")
     return output_filename
 
-def get_audio_from_voice_id(voice_id: str, input_csv_path: str = "data/11labs_available_tts_voices.reviewed.csv") -> str:
+
+def get_audio_from_voice_id(
+    voice_id: str, input_csv_path: str = "data/11labs_available_tts_voices.reviewed.csv"
+) -> str:
     voices_df = pd.read_csv(input_csv_path)
     return voices_df[voices_df["voice_id"] == voice_id]["preview_url"].values[0]
-
