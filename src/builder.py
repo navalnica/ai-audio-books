@@ -98,10 +98,18 @@ class AudiobookBuilder:
         return tts_tasks_results
 
     @staticmethod
-    async def _generate_tts_audio(
+    def _add_voice_ids_to_tts_params(
         text_split: SplitTextOutput,
         tts_params_list: list[TTSParams],
         character2voice: dict[str, str],
+    ) -> list[TTSParams]:
+        for character_phrase, params in zip(text_split.phrases, tts_params_list):
+            params.voice_id = character2voice[character_phrase.character]
+        return tts_params_list
+
+    @staticmethod
+    async def _generate_tts_audio(
+        tts_params_list: list[TTSParams],
         out_dp: str,
     ) -> TTSPhrasesGenerationOutput:
         semaphore = asyncio.Semaphore(ELEVENLABS_MAX_PARALLEL)
@@ -110,13 +118,8 @@ class AudiobookBuilder:
             async with semaphore:
                 return await tts.tts_w_timestamps(params=params)
 
-        tasks_for_tts = []
-        for character_phrase, params in zip(text_split.phrases, tts_params_list):
-            params.voice_id = character2voice[character_phrase.character]
-            task = _tts_with_semaphore(params=params)
-            tasks_for_tts.append(task)
-
-        tts_responses: list[TTSTimestampsResponse] = await asyncio.gather(*tasks_for_tts)
+        tasks = [_tts_with_semaphore(params=params) for params in tts_params_list]
+        tts_responses: list[TTSTimestampsResponse] = await asyncio.gather(*tasks)
 
         tts_audio_fps = []
         for ix, (params, res) in enumerate(zip(tts_params_list, tts_responses), start=1):
@@ -129,6 +132,8 @@ class AudiobookBuilder:
         # combine alignments
         alignments = [response.alignment for response in tts_responses]
         char2time = TTSTimestampsAlignment.combine_alignments(alignments=alignments)
+        # filter alignments
+        char2time = char2time.filter_chars_without_duration()
 
         return TTSPhrasesGenerationOutput(audio_fps=tts_audio_fps, char2time=char2time)
 
@@ -138,7 +143,7 @@ class AudiobookBuilder:
         char2time: TTSTimestampsAlignment,
     ) -> list[SoundEffectDescription]:
         for sed in sound_effects_descriptions:
-            ix_start, ix_end = sed.ix_start_llm_response, sed.ix_end_llm_response
+            ix_start, ix_end = sed.ix_start_orig_text, sed.ix_end_orig_text
             time_start = char2time.get_start_time_by_char_ix(ix_start, safe=True)
             time_end = char2time.get_end_time_by_char_ix(ix_end, safe=True)
             duration = time_end - time_start
@@ -203,6 +208,44 @@ class AudiobookBuilder:
         return se_fps
 
     @staticmethod
+    def _save_text_split_debug_data(
+        text_split: SplitTextOutput,
+        out_dp: str,
+    ):
+        out_fp = os.path.join(out_dp, 'text_split.json')
+        # NOTE: use `to_dict()` for correct conversion
+        data = text_split.model_dump()
+        utils.write_json(data, fp=out_fp)
+
+    @staticmethod
+    def _save_tts_debug_data(
+        tts_params_list: list[TTSParams],
+        tts_out: TTSPhrasesGenerationOutput,
+        out_dp: str,
+    ):
+        out_fp = os.path.join(out_dp, 'tts.json')
+        # NOTE: use `to_dict()` for correct conversion
+        data = [param.to_dict() for param in tts_params_list]
+        utils.write_json(data, fp=out_fp)
+
+        out_dp = os.path.join(out_dp, 'tts_char2time.csv')
+        df_char2time = tts_out.char2time.to_dataframe()
+        df_char2time.to_csv(out_dp, index=True)
+
+    @staticmethod
+    def _save_sound_effects_debug_data(
+        sound_effect_design_output: SoundEffectsDesignOutput,
+        sound_effect_descriptions: list[SoundEffectDescription],
+        out_dp: str,
+    ):
+        out_fp = os.path.join(out_dp, 'sound_effects_raw_llm_output.txt')
+        utils.write_txt(sound_effect_design_output.text_annotated, fp=out_fp)
+
+        out_fp = os.path.join(out_dp, 'sound_effects_descriptions.json')
+        data = [sed.model_dump() for sed in sound_effect_descriptions]
+        utils.write_json(data, fp=out_fp)
+
+    @staticmethod
     def _normalize_audio_files(
         audio_fps: list[str], out_dp: str, target_dBFS: float = -20.0
     ) -> list[str]:
@@ -234,6 +277,9 @@ class AudiobookBuilder:
         out_dp_root = os.path.join('data', 'audiobooks', dir_name)
         os.makedirs(out_dp_root, exist_ok=False)
 
+        debug_dp = os.path.join(out_dp_root, 'debug')
+        os.makedirs(debug_dp)
+
         with get_openai_callback() as cb:
             # NOTE: we don't use langchain in every LLM calls.
             # thus, usage from this callback is not representative
@@ -242,26 +288,32 @@ class AudiobookBuilder:
             # I think it will be more efficient to keep all audio in memory.
 
             text_split = await self._split_text(text=text)
+            self._save_text_split_debug_data(text_split=text_split, out_dp=debug_dp)
 
             # TODO: call sound effects chain in parallel with text split chain
             if generate_effects:
-                designed_sound_effects = await self._design_sound_effects(text=text)
+                se_design_output = await self._design_sound_effects(text=text)
 
+            # TODO: run these 2 chains in parallel
             select_voice_chain_out = await self._map_characters_to_voices(text_split=text_split)
-
             tts_params_list = await self._prepare_text_for_tts(text_split=text_split)
 
-            tts_dp = os.path.join(out_dp_root, 'tts')
-            os.makedirs(tts_dp)
-            tts_out = await self._generate_tts_audio(
+            tts_params_list = self._add_voice_ids_to_tts_params(
                 text_split=text_split,
                 tts_params_list=tts_params_list,
                 character2voice=select_voice_chain_out.character2voice,
-                out_dp=tts_dp,
+            )
+
+            tts_dp = os.path.join(out_dp_root, 'tts')
+            os.makedirs(tts_dp)
+            tts_out = await self._generate_tts_audio(tts_params_list=tts_params_list, out_dp=tts_dp)
+
+            self._save_tts_debug_data(
+                tts_params_list=tts_params_list, tts_out=tts_out, out_dp=debug_dp
             )
 
             if generate_effects:
-                se_descriptions = designed_sound_effects.sound_effects_descriptions
+                se_descriptions = se_design_output.sound_effects_descriptions
 
                 se_descriptions = self._update_sound_effects_descriptions_with_durations(
                     sound_effects_descriptions=se_descriptions, char2time=tts_out.char2time
@@ -290,6 +342,12 @@ class AudiobookBuilder:
                     raise ValueError(
                         f'expected {len(se_descriptions)} generated sound effects, got: {len(se_fps)}'
                     )
+
+                self._save_sound_effects_debug_data(
+                    sound_effect_design_output=se_design_output,
+                    sound_effect_descriptions=se_descriptions,
+                    out_dp=debug_dp,
+                )
 
             tts_normalized_dp = os.path.join(out_dp_root, 'tts_normalized')
             os.makedirs(tts_normalized_dp)

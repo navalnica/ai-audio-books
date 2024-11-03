@@ -118,6 +118,7 @@ class TTSTimestampsAlignment(ExtraForbidModel):
     def combine_alignments(
         cls,
         alignments: list[TTSTimestampsAlignment],
+        add_placeholders: bool = False,
         pause_bw_chunks_s: float = 0.2,
     ) -> TTSTimestampsAlignment:
         """
@@ -148,7 +149,7 @@ class TTSTimestampsAlignment(ExtraForbidModel):
             starts.extend(cur_starts_absolute)
             ends.extend(cur_ends_absolute)
 
-            if ix < n_alignments - 1:
+            if ix < n_alignments - 1 and add_placeholders:
                 chars.append('#')
                 placeholder_start = cur_ends_absolute[-1]
                 starts.append(placeholder_start)
@@ -161,6 +162,23 @@ class TTSTimestampsAlignment(ExtraForbidModel):
             character_start_times_seconds=starts,
             character_end_times_seconds=ends,
         )
+
+    def filter_chars_without_duration(self):
+        """
+        Create new class instance with characters with 0 duration removed.
+        Needed to provide correct alignment when overlaying sound effects.
+        """
+        df = self.to_dataframe()
+        mask = (df['start'] - df['end']).abs() > 1e-5
+        df = df[mask]
+
+        res = TTSTimestampsAlignment(
+            characters=df['char'].to_list(),
+            character_start_times_seconds=df['start'].to_list(),
+            character_end_times_seconds=df['end'].to_list(),
+        )
+
+        return res
 
     @staticmethod
     def _get_safe_index(ix: int, collection: list):

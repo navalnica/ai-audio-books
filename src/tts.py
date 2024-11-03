@@ -13,8 +13,6 @@ from src.utils import auto_retry
 
 ELEVEN_CLIENT_ASYNC = AsyncElevenLabs(api_key=ELEVENLABS_API_KEY)
 
-# TODO: use TTSParams
-
 
 async def tts_astream(
     voice_id: str, text: str, params: dict | None = None

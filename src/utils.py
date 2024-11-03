@@ -1,3 +1,4 @@
+import json
 import datetime
 import shutil
 import typing as t
@@ -22,6 +23,16 @@ class GPTModels(StrEnum):
 def get_chat_llm(llm_model: GPTModels, temperature=0.0):
     llm = ChatOpenAI(model=llm_model, temperature=temperature, timeout=Timeout(60, connect=4))
     return llm
+
+
+def write_txt(txt: str, fp: str):
+    with open(fp, 'w', encoding='utf-8') as fout:
+        fout.write(txt)
+
+
+def write_json(data, fp: str, indent=2):
+    with open(fp, 'w', encoding='utf-8') as fout:
+        json.dump(data, fout, indent=indent, ensure_ascii=False)
 
 
 def rm_dir_conditional(dp: str, to_remove=True):
