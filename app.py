@@ -226,7 +226,7 @@ def generate_full_text_split_with_effect_html(
                 text_between_effect_description = text_between_effects_texts[effect_index]
 
                 effect_start = text.lower().find(text_between_effect_description.lower())
-                effect_end = effect_start + len(effect_text)
+                effect_end = effect_start + len(text_between_effect_description)
 
                 html_parts.append(create_regular_span(
                     text[prev_end:effect_start],
