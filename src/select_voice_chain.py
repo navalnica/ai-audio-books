@@ -10,10 +10,9 @@ from langchain_core.prompts import (
 from langchain_core.runnables import RunnablePassthrough
 from pydantic import BaseModel
 
-from src.config import logger
+from src.config import VOICES_CSV_FP, logger
 from src.prompts import CharacterVoicePropertiesPrompt
 from src.utils import GPTModels, get_chat_llm
-from src.config import VOICES_CSV_FP
 
 
 class Property(StrEnum):
@@ -121,9 +120,7 @@ class VoiceSelector:
 
         return character2voice
 
-    def _remove_hallucinations_single_character(
-        self, character_props: CharacterProperties
-    ):
+    def _remove_hallucinations_single_character(self, character_props: CharacterProperties):
         def _process_prop(prop: Property, value: str):
             if value not in self.PROPERTY_VALUES[prop]:
                 logger.warning(
@@ -134,9 +131,7 @@ class VoiceSelector:
 
         return CharacterPropertiesNullable(
             gender=_process_prop(prop=Property.gender, value=character_props.gender),
-            age_group=_process_prop(
-                prop=Property.age_group, value=character_props.age_group
-            ),
+            age_group=_process_prop(prop=Property.age_group, value=character_props.age_group),
         )
 
     def remove_hallucinations(
@@ -167,28 +162,20 @@ class VoiceSelector:
 
         prompt = ChatPromptTemplate.from_messages(
             [
-                SystemMessagePromptTemplate.from_template(
-                    CharacterVoicePropertiesPrompt.SYSTEM
-                ),
-                HumanMessagePromptTemplate.from_template(
-                    CharacterVoicePropertiesPrompt.USER
-                ),
+                SystemMessagePromptTemplate.from_template(CharacterVoicePropertiesPrompt.SYSTEM),
+                HumanMessagePromptTemplate.from_template(CharacterVoicePropertiesPrompt.USER),
             ]
         )
         prompt = prompt.partial(
             **{
                 "available_genders": self.get_available_properties_str(Property.gender),
-                "available_age_groups": self.get_available_properties_str(
-                    Property.age_group
-                ),
+                "available_age_groups": self.get_available_properties_str(Property.age_group),
                 "format_instructions": format_instructions,
             }
         )
 
         chain = (
-            RunnablePassthrough.assign(
-                charater_props=prompt | llm | self.remove_hallucinations
-            )
+            RunnablePassthrough.assign(charater_props=prompt | llm | self.remove_hallucinations)
             | RunnablePassthrough.assign(character2voice=self.get_voices)
             | self.pack_results
         )

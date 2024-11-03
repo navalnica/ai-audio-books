@@ -1,5 +1,5 @@
-import os
 import logging
+import os
 
 logging.basicConfig(
     level=logging.INFO,
@@ -12,8 +12,11 @@ ELEVENLABS_API_KEY = os.environ["ELEVEN_LABS_API_KEY"]
 
 FILE_SIZE_MAX = 0.5  # in mb
 
-OPENAI_MAX_PARALLEL = 8  # empirically set
-ELEVENLABS_MAX_PARALLEL = 15  # current limitation of available subscription
+OPENAI_MAX_PARALLEL = 5  # empirically set
+
+# current limitation of available subscription.
+# see: https://elevenlabs.io/docs/api-reference/text-to-speech#generation-and-concurrency-limits
+ELEVENLABS_MAX_PARALLEL = 15
 
 # VOICES_CSV_FP = "data/11labs_available_tts_voices.csv"
 VOICES_CSV_FP = "data/11labs_available_tts_voices.reviewed.csv"

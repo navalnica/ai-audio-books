@@ -10,3 +10,5 @@ gradio
 python-dotenv
 streamlit
 pypdf
+black
+isort

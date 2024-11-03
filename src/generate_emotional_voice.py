@@ -1,8 +1,9 @@
-from openai import OpenAI
 import json
-import requests
 
-client = OpenAI(api_key = '')
+import requests
+from openai import OpenAI
+
+client = OpenAI(api_key='')
 PROMT = """
 You should help me to make an audiobook with realistic emotion-based voice using TTS.
 You are tasked with adjusting the emotional tone of a given text
@@ -45,12 +46,12 @@ He sat down on the couch, his hand tracing the empty space beside him where she 
 He knew he would never see her smile again, never hear her voice and that was unbearable. Yet, he couldn’t reconcile himself with the fact that she was truly gone. 'How do I go on?' — he wondered, but there was no answer.
 """
 
+
 def generate_modified_text(text: str) -> dict:
     completion = client.chat.completions.create(
         model="gpt-4o",
-        messages=[{"role": "system", "content": PROMT},
-                  {"role": "user", "content": text}],
-        response_format={"type": "json_object"}
+        messages=[{"role": "system", "content": PROMT}, {"role": "user", "content": text}],
+        response_format={"type": "json_object"},
     )
     chatgpt_output = completion.choices[0].message.content
     try:
@@ -64,17 +65,9 @@ def generate_audio(text: str, params: dict, output_file: str):
     CHUNK_SIZE = 1024
     url = "https://api.elevenlabs.io/v1/text-to-speech/pMsXgVXv3BLzUgSXRplE"
 
-    headers = {
-        "Accept": "audio/mpeg",
-        "Content-Type": "application/json",
-        "xi-api-key": ""
-    }
+    headers = {"Accept": "audio/mpeg", "Content-Type": "application/json", "xi-api-key": ""}
 
-    data = {
-        "text": text,
-        "model_id": "eleven_monolingual_v1",
-        "voice_settings": params
-    }
+    data = {"text": text, "model_id": "eleven_monolingual_v1", "voice_settings": params}
 
     response = requests.post(url, json=data, headers=headers)
     with open(f'{output_file}.mp3', 'wb') as f:
@@ -82,13 +75,14 @@ def generate_audio(text: str, params: dict, output_file: str):
             if chunk:
                 f.write(chunk)
 
+
 if __name__ == "__main__":
-    default_param = {
-        "stability": 0.5,
-        "similarity_boost": 0.5,
-        "style": 0.5
-    }
+    default_param = {"stability": 0.5, "similarity_boost": 0.5, "style": 0.5}
     generate_audio(text_to_modified, default_param, "text_without_prompt")
     modified_text_with_params = generate_modified_text(text_to_modified)
     print(modified_text_with_params)
-    generate_audio(modified_text_with_params['modified_text'], modified_text_with_params['params'], "text_with_prompt")
+    generate_audio(
+        modified_text_with_params['modified_text'],
+        modified_text_with_params['params'],
+        "text_with_prompt",
+    )

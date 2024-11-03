@@ -7,7 +7,6 @@ from elevenlabs import ElevenLabs
 from elevenlabs.core import ApiError
 from tqdm.auto import tqdm
 
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s (%(filename)s): %(message)s",
@@ -23,9 +22,7 @@ load_dotenv()
 @click.option("-i", "--input-csv-path", default="data/11labs_tts_voices.csv")
 def main(*, api_key: str | None, input_csv_path: str) -> None:
     if api_key is None:
-        raise OSError(
-            "Who's gonna set the `ELEVEN_LABS_API_KEY` environmental variable?"
-        )
+        raise OSError("Who's gonna set the `ELEVEN_LABS_API_KEY` environmental variable?")
 
     client = ElevenLabs(api_key=api_key)
     voices_to_import = pd.read_csv(input_csv_path)
@@ -39,13 +36,11 @@ def main(*, api_key: str | None, input_csv_path: str) -> None:
             )
         except ApiError:
             logger.error(
-                f"Shared voice with `{public_user_id = }`, `{voice_id = }` "
-                "already added."
+                f"Shared voice with `{public_user_id = }`, `{voice_id = }` " "already added."
             )
         else:
             logger.info(
-                f"Added shared voice with `{public_user_id = }`, `{voice_id = }`, "
-                f"`{name = }`."
+                f"Added shared voice with `{public_user_id = }`, `{voice_id = }`, " f"`{name = }`."
             )
 
 

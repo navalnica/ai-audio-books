@@ -6,7 +6,6 @@ import pandas as pd
 from dotenv import load_dotenv
 from elevenlabs import ElevenLabs
 
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s (%(filename)s): %(message)s",
@@ -22,9 +21,7 @@ load_dotenv()
 @click.option("-o", "--output-csv-path", default="data/11labs_available_tts_voices.csv")
 def main(*, api_key: str | None, output_csv_path: str) -> None:
     if api_key is None:
-        raise OSError(
-            "Who's gonna set the `ELEVEN_LABS_API_KEY` environmental variable?"
-        )
+        raise OSError("Who's gonna set the `ELEVEN_LABS_API_KEY` environmental variable?")
 
     client = ElevenLabs(api_key=api_key)
     response = client.voices.get_all()
