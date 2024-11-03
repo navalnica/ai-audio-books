@@ -91,7 +91,7 @@ class TTSParams(ExtraForbidModel):
         return res
 
 
-class TTSTimestampsAlignemnt(ExtraForbidModel):
+class TTSTimestampsAlignment(ExtraForbidModel):
     characters: list[str]
     character_start_times_seconds: list[float]
     character_end_times_seconds: list[float]
@@ -117,9 +117,9 @@ class TTSTimestampsAlignemnt(ExtraForbidModel):
     @classmethod
     def combine_alignments(
         cls,
-        alignments: list[TTSTimestampsAlignemnt],
+        alignments: list[TTSTimestampsAlignment],
         pause_bw_chunks_s: float = 0.2,
-    ) -> TTSTimestampsAlignemnt:
+    ) -> TTSTimestampsAlignment:
         """
         Combine alignemnts created for different TTS phrases in a single aligment for a whole text.
 
@@ -156,7 +156,7 @@ class TTSTimestampsAlignemnt(ExtraForbidModel):
 
             prev_chunk_end_time = ends[-1]
 
-        return TTSTimestampsAlignemnt(
+        return cls(
             characters=chars,
             character_start_times_seconds=starts,
             character_end_times_seconds=ends,
@@ -187,8 +187,8 @@ class TTSTimestampsAlignemnt(ExtraForbidModel):
 
 class TTSTimestampsResponse(ExtraForbidModel):
     audio_base64: str
-    alignment: TTSTimestampsAlignemnt
-    normalized_alignment: TTSTimestampsAlignemnt
+    alignment: TTSTimestampsAlignment
+    normalized_alignment: TTSTimestampsAlignment
 
     @property
     def audio_bytes(self):
