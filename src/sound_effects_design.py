@@ -22,7 +22,10 @@ class SoundEffectDescription(BaseModel):
     # indices relative to original text passed to LLM
     ix_start_orig_text: int
     ix_end_orig_text: int
-    duration: float = -1  # NOTE: this can be filled after TTS audio is generated
+    # NOTE: start_sec and duration_sec fields
+    # are going to be filled once TTS audio is generated
+    start_sec: float = -1.0
+    duration_sec: float = -1.0
 
 
 class SoundEffectsDesignOutput(BaseModel):

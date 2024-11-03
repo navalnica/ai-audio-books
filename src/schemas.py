@@ -91,7 +91,7 @@ class TTSParams(ExtraForbidModel):
         return res
 
 
-class TTSTimestampsAlignemnt(ExtraForbidModel):
+class TTSTimestampsAlignment(ExtraForbidModel):
     characters: list[str]
     character_start_times_seconds: list[float]
     character_end_times_seconds: list[float]
@@ -117,9 +117,10 @@ class TTSTimestampsAlignemnt(ExtraForbidModel):
     @classmethod
     def combine_alignments(
         cls,
-        alignments: list[TTSTimestampsAlignemnt],
+        alignments: list[TTSTimestampsAlignment],
+        add_placeholders: bool = False,
         pause_bw_chunks_s: float = 0.2,
-    ) -> TTSTimestampsAlignemnt:
+    ) -> TTSTimestampsAlignment:
         """
         Combine alignemnts created for different TTS phrases in a single aligment for a whole text.
 
@@ -148,7 +149,7 @@ class TTSTimestampsAlignemnt(ExtraForbidModel):
             starts.extend(cur_starts_absolute)
             ends.extend(cur_ends_absolute)
 
-            if ix < n_alignments - 1:
+            if ix < n_alignments - 1 and add_placeholders:
                 chars.append('#')
                 placeholder_start = cur_ends_absolute[-1]
                 starts.append(placeholder_start)
@@ -156,11 +157,28 @@ class TTSTimestampsAlignemnt(ExtraForbidModel):
 
             prev_chunk_end_time = ends[-1]
 
-        return TTSTimestampsAlignemnt(
+        return cls(
             characters=chars,
             character_start_times_seconds=starts,
             character_end_times_seconds=ends,
         )
+
+    def filter_chars_without_duration(self):
+        """
+        Create new class instance with characters with 0 duration removed.
+        Needed to provide correct alignment when overlaying sound effects.
+        """
+        df = self.to_dataframe()
+        mask = (df['start'] - df['end']).abs() > 1e-5
+        df = df[mask]
+
+        res = TTSTimestampsAlignment(
+            characters=df['char'].to_list(),
+            character_start_times_seconds=df['start'].to_list(),
+            character_end_times_seconds=df['end'].to_list(),
+        )
+
+        return res
 
     @staticmethod
     def _get_safe_index(ix: int, collection: list):
@@ -187,8 +205,8 @@ class TTSTimestampsAlignemnt(ExtraForbidModel):
 
 class TTSTimestampsResponse(ExtraForbidModel):
     audio_base64: str
-    alignment: TTSTimestampsAlignemnt
-    normalized_alignment: TTSTimestampsAlignemnt
+    alignment: TTSTimestampsAlignment
+    normalized_alignment: TTSTimestampsAlignment
 
     @property
     def audio_bytes(self):

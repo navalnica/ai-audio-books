@@ -1,5 +1,7 @@
-import shutil
 import datetime
+import json
+import shutil
+import typing as t
 import wave
 from enum import StrEnum
 from pathlib import Path
@@ -21,6 +23,16 @@ class GPTModels(StrEnum):
 def get_chat_llm(llm_model: GPTModels, temperature=0.0):
     llm = ChatOpenAI(model=llm_model, temperature=temperature, timeout=Timeout(60, connect=4))
     return llm
+
+
+def write_txt(txt: str, fp: str):
+    with open(fp, 'w', encoding='utf-8') as fout:
+        fout.write(txt)
+
+
+def write_json(data, fp: str, indent=2):
+    with open(fp, 'w', encoding='utf-8') as fout:
+        json.dump(data, fout, indent=indent, ensure_ascii=False)
 
 
 def rm_dir_conditional(dp: str, to_remove=True):
@@ -57,6 +69,14 @@ def write_bytes(data: bytes, fp: str):
         fout.write(data)
 
 
+def write_chunked_bytes(data: t.Iterable[bytes], fp: str):
+    logger.info(f'saving to: "{fp}"')
+    with open(fp, "wb") as fout:
+        for chunk in data:
+            if chunk:
+                fout.write(chunk)
+
+
 def write_raw_pcm_to_file(data: bytes, fp: str, n_channels: int, bytes_depth: int, sampling_rate):
     logger.info(f'saving to: "{fp}"')
     with wave.open(fp, "wb") as f:
@@ -89,32 +109,50 @@ def normalize_audio(audio_segment: AudioSegment, target_dBFS: float = -20.0) -> 
     return res
 
 
-# TODO: outdated code
-def add_overlay_for_audio(
-    audio1_fp: str,
-    audio2_fp: str,
-    out_fp: str | None = None,
-    cycling_effect: bool = False,
-    decrease_effect_volume: int = 0,
-) -> str:
-    try:
-        main_audio = AudioSegment.from_file(audio1_fp)
-        effect_audio = AudioSegment.from_file(audio2_fp)
-    except Exception as e:
-        raise RuntimeError(f"Error loading audio files: {e}")
+# def add_overlay_for_audio(
+#     audio1_fp: str,
+#     audio2_fp: str,
+#     out_fp: str | None = None,
+#     cycling_effect: bool = False,
+#     decrease_effect_volume: int = 0,
+# ):
+# NOTE: deprecated
+#     try:
+#         main_audio = AudioSegment.from_file(audio1_fp)
+#         effect_audio = AudioSegment.from_file(audio2_fp)
+#     except Exception as e:
+#         raise RuntimeError(f"Error loading audio files: {e}")
 
-    if cycling_effect:
-        while len(effect_audio) < len(main_audio):
-            effect_audio += effect_audio
+#     if cycling_effect:
+#         while len(effect_audio) < len(main_audio):
+#             effect_audio += effect_audio
 
-    effect_audio = effect_audio[: len(main_audio)]
+#     effect_audio = effect_audio[: len(main_audio)]
 
-    if decrease_effect_volume > 0:
-        effect_audio = effect_audio - decrease_effect_volume
-    combined_audio = main_audio.overlay(effect_audio)
+#     if decrease_effect_volume > 0:
+#         effect_audio = effect_audio - decrease_effect_volume
+#     combined_audio = main_audio.overlay(effect_audio)
 
-    if out_fp is None:
-        out_fp = f"{Path(audio1_fp).stem}_{Path(audio2_fp).stem}.wav"
-    combined_audio.export(out_fp, format="wav")
+#     if out_fp:
+#         logger.info(f'saving overlayed audio to: "{out_fp}"')
+#         combined_audio.export(out_fp, format="wav")
 
-    return out_fp
+
+def overlay_multiple_audio(
+    main_audio_fp: str,
+    audios_to_overlay_fps: list[str],
+    starts_sec: list[float],  # list of start positions, in seconds
+    out_fp: str,
+):
+    main_audio = AudioSegment.from_file(main_audio_fp)
+    for fp, cur_start_sec in zip(audios_to_overlay_fps, starts_sec):
+        audio_to_overlay = AudioSegment.from_file(fp)
+        # NOTE: quote from the documentation:
+        # "The result is always the same length as this AudioSegment"
+        # reference: https://github.com/jiaaro/pydub/blob/master/API.markdown#audiosegmentoverlay
+        # NOTE: `position` params is offset time in milliseconds
+        start_ms = int(cur_start_sec * 1000)
+        main_audio = main_audio.overlay(audio_to_overlay, position=start_ms)
+
+    logger.info(f'saving overlayed audio to: "{out_fp}"')
+    main_audio.export(out_fp, format='wav')
