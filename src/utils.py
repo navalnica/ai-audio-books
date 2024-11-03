@@ -1,3 +1,5 @@
+import shutil
+import datetime
 import wave
 from enum import StrEnum
 from pathlib import Path
@@ -21,14 +23,30 @@ def get_chat_llm(llm_model: GPTModels, temperature=0.0):
     return llm
 
 
+def rm_dir_conditional(dp: str, to_remove=True):
+    if not to_remove:
+        return
+    logger.info(f'removing dir: "{dp}"')
+    try:
+        shutil.rmtree(dp)
+    except Exception:
+        logger.exception(f'failed to remove dir')
+
+
+def get_utc_now_str():
+    now = datetime.datetime.now(tz=datetime.UTC)
+    now_str = now.strftime('%Y%m%d-%H%M%S')
+    return now_str
+
+
 async def consume_aiter(aiterator):
     return [x async for x in aiterator]
 
 
 def auto_retry(f):
     decorator = retry(
-        wait=wait_random_exponential(min=2, max=6),
-        stop=stop_after_attempt(10),
+        wait=wait_random_exponential(min=3, max=10),
+        stop=stop_after_attempt(20),
     )
     return decorator(f)
 
@@ -61,16 +79,27 @@ def get_audio_duration(filepath: str) -> float:
     return round(duration_in_seconds, 1)
 
 
+def normalize_audio(audio_segment: AudioSegment, target_dBFS: float = -20.0) -> AudioSegment:
+    """Normalize an audio segment to the target dBFS level."""
+
+    # TODO: does it work as expected?
+
+    delta = target_dBFS - audio_segment.dBFS
+    res = audio_segment.apply_gain(delta)
+    return res
+
+
+# TODO: outdated code
 def add_overlay_for_audio(
-    main_audio_filename: str,
-    sound_effect_filename: str,
-    output_filename: str | None = None,
-    cycling_effect: bool = True,
+    audio1_fp: str,
+    audio2_fp: str,
+    out_fp: str | None = None,
+    cycling_effect: bool = False,
     decrease_effect_volume: int = 0,
 ) -> str:
     try:
-        main_audio = AudioSegment.from_file(main_audio_filename)
-        effect_audio = AudioSegment.from_file(sound_effect_filename)
+        main_audio = AudioSegment.from_file(audio1_fp)
+        effect_audio = AudioSegment.from_file(audio2_fp)
     except Exception as e:
         raise RuntimeError(f"Error loading audio files: {e}")
 
@@ -84,7 +113,8 @@ def add_overlay_for_audio(
         effect_audio = effect_audio - decrease_effect_volume
     combined_audio = main_audio.overlay(effect_audio)
 
-    if output_filename is None:
-        output_filename = f"{Path(main_audio_filename).stem}_{Path(sound_effect_filename).stem}.wav"
-    combined_audio.export(output_filename, format="wav")
-    return output_filename
+    if out_fp is None:
+        out_fp = f"{Path(audio1_fp).stem}_{Path(audio2_fp).stem}.wav"
+    combined_audio.export(out_fp, format="wav")
+
+    return out_fp

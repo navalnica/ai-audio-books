@@ -12,7 +12,7 @@ ELEVENLABS_API_KEY = os.environ["ELEVEN_LABS_API_KEY"]
 
 FILE_SIZE_MAX = 0.5  # in mb
 
-OPENAI_MAX_PARALLEL = 8  # empirically set
+OPENAI_MAX_PARALLEL = 5  # empirically set
 
 # current limitation of available subscription.
 # see: https://elevenlabs.io/docs/api-reference/text-to-speech#generation-and-concurrency-limits

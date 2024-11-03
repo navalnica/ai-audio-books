@@ -60,7 +60,10 @@ class TTSParams(ExtraForbidModel):
     )
 
     language_code: t.Optional[str] = Field(default_factory=lambda: OMIT)
+
+    # reference: https://elevenlabs.io/docs/speech-synthesis/voice-settings
     voice_settings: t.Optional[VoiceSettings] = Field(default_factory=lambda: OMIT)
+
     # pronunciation_dictionary_locators: t.Optional[
     #     t.Sequence[PronunciationDictionaryVersionLocator]
     # ] = Field(default_factory=lambda: OMIT)

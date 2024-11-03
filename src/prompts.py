@@ -104,8 +104,7 @@ Do not include anythin else in your answer.
 """
 
 
-## OLD PROMPT BELOW
-
+# TODO: this prompt is not used
 PREFIX = """\
 You should help me to make an audiobook with realistic emotion sound using TTS.
 You are tasked with generating a description of sound effects
@@ -115,6 +114,7 @@ The generated sound description must evoke the scene
 or emotions from the text (e.g., footsteps, wind, tense silence, etc.),
 and it should be succinct and fit the mood of the text."""
 
+# TODO: this prompt is not used
 SOUND_EFFECT_GENERATION = f"""
 {PREFIX}
 
@@ -150,6 +150,7 @@ But remember to use keep instructions simple.
 - aim to create specific sounds, like crackling fireplace, footsteps, wind, etc...
 """
 
+# TODO: this prompt is not used
 SOUND_EFFECT_GENERATION_WITHOUT_DURATION_PREDICTION = f"""
 {PREFIX}
 
@@ -170,6 +171,7 @@ Your output should be in the following JSON format:
   "prompt_influence": 0.4
 }}"""
 
+# TODO: this prompt is not used
 TEXT_MODIFICATION = """
 You should help me to make an audiobook with realistic emotion-based voice using TTS.
 You are tasked with adjusting the emotional tone of a given text
@@ -211,6 +213,8 @@ Example of text that could be passed:
 Text: "I can't believe this is happening."
 """
 
+# TODO: try to make this prompt shorter!!!
+# TODO: try to rewrite the whole text at once, instead of rewriting each individual phrase
 TEXT_MODIFICATION_WITH_SSML = """
 You should help me to make an audiobook with overabundant emotion-based voice using TTS.
 You are tasked with transforming the text provided into a sophisticated SSML script 
