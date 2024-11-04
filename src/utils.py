@@ -1,11 +1,13 @@
 import datetime
 import json
+import re
 import shutil
 import typing as t
 import wave
 from enum import StrEnum
 from pathlib import Path
 
+import pandas as pd
 from httpx import Timeout
 from langchain_openai import ChatOpenAI
 from pydub import AudioSegment
@@ -21,7 +23,11 @@ class GPTModels(StrEnum):
 
 
 def get_chat_llm(llm_model: GPTModels, temperature=0.0):
-    llm = ChatOpenAI(model=llm_model, temperature=temperature, timeout=Timeout(60, connect=4))
+    llm = ChatOpenAI(
+        model=llm_model,
+        temperature=temperature,
+        timeout=Timeout(60, connect=4),
+    )
     return llm
 
 
@@ -156,3 +162,36 @@ def overlay_multiple_audio(
 
     logger.info(f'saving overlayed audio to: "{out_fp}"')
     main_audio.export(out_fp, format='wav')
+
+
+def get_audio_from_voice_id(
+    voice_id: str, input_csv_path: str = "data/11labs_available_tts_voices.reviewed.csv"
+) -> str:
+    voices_df = pd.read_csv(input_csv_path)
+    return voices_df[voices_df["voice_id"] == voice_id]["preview_url"].values[0]
+
+
+def get_character_color(character: str) -> str:
+    if not character or character == "Unassigned":
+        return "#808080"
+    colors = [
+        "#FF6B6B",
+        "#4ECDC4",
+        "#45B7D1",
+        "#96CEB4",
+        "#FFEEAD",
+        "#D4A5A5",
+        "#9B59B6",
+        "#3498DB",
+    ]
+    hash_val = sum(ord(c) for c in character)
+    return colors[hash_val % len(colors)]
+
+
+def replace_labels(text):
+    return re.sub(r'\bc(\d+)\b', r'Character\1', text)
+
+
+def hex_to_rgb(hex_color):
+    hex_color = hex_color.lstrip('#')
+    return f"{int(hex_color[0:2], 16)},{int(hex_color[2:4], 16)},{int(hex_color[4:6], 16)}"
