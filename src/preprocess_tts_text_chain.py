@@ -11,7 +11,6 @@ from .prompts import TEXT_MODIFICATION_WITH_SSML
 
 
 class TTSTextProcessorWithSSML:
-
     # TODO: refactor to langchain function (?)
 
     def __init__(self):

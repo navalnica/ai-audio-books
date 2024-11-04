@@ -44,7 +44,6 @@ async def tts_astream_consumed(voice_id: str, text: str, params: dict | None = N
 
 @auto_retry
 async def tts_w_timestamps(params: TTSParams) -> TTSTimestampsResponse:
-
     async def _tts_w_timestamps(params: TTSParams) -> TTSTimestampsResponse:
         # NOTE: we need to use special `to_dict()` method to ensure pydantic model is converted
         # to dict with proper aliases
