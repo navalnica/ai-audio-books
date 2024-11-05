@@ -12,7 +12,8 @@ from src.web.constructor import HTMLGenerator
 from src.web.utils import (
     create_status_html,
     generate_full_text_split_without_effect_html,
-    generate_full_text_split_with_effect_html, generate_voice_assignments_html,
+    generate_full_text_split_with_effect_html,
+    generate_voice_assignments_html,
 )
 from src import tts, utils
 from src.config import ELEVENLABS_MAX_PARALLEL, OPENAI_MAX_PARALLEL, logger
@@ -309,6 +310,17 @@ class AudiobookBuilder:
             )
         )
 
+    async def create_voice_mapping_task(
+        self, semaphore: asyncio.Semaphore, text_split: SplitTextOutput
+    ) -> asyncio.Task:
+        return asyncio.create_task(
+            self.process_single_task(
+                semaphore=semaphore,
+                func=self._map_characters_to_voices,
+                text_split=text_split,
+            )
+        )
+
     async def prepare_text_for_tts_with_voice_mapping(
         self,
         full_text: str,
@@ -319,54 +331,78 @@ class AudiobookBuilder:
     ):
         semaphore = asyncio.Semaphore(OPENAI_MAX_PARALLEL)
 
-        tasks = []
-        tasks.extend(
-            [
-                await self.create_emotion_text_task(semaphore, phrase.text)
-                for phrase in text_split.phrases
-            ]
-        )
-        if generate_effects:
-            tasks.append(await self.create_effect_text_task(semaphore, full_text))
+        # Create tasks for emotion processing
+        emotion_tasks = [
+            self.create_emotion_text_task(semaphore, phrase.text)
+            for phrase in text_split.phrases
+        ]
 
+        # Create effect task if needed
+        effect_task = None
+        if generate_effects:
+            effect_task = await self.create_effect_text_task(semaphore, full_text)
+
+        # Create voice mapping task if needed
+        voice_mapping_task = None
         if not use_user_voice:
-            tasks.append(
-                asyncio.create_task(
-                    self.process_single_task(
-                        semaphore=semaphore,
-                        func=self._map_characters_to_voices,
-                        text_split=text_split,
-                    )
-                )
+            voice_mapping_task = await self.create_voice_mapping_task(
+                semaphore=semaphore,
+                text_split=text_split,
             )
 
-        results = await asyncio.gather(*tasks)
-        effects: SoundEffectsDesignOutput = None
+        # Gather all tasks that need to be executed
+        tasks_to_execute = [*emotion_tasks]
+        if effect_task:
+            tasks_to_execute.append(effect_task)
+        if voice_mapping_task:
+            tasks_to_execute.append(voice_mapping_task)
 
-        if not use_user_voice:
+        # Wait for all tasks to complete
+        results = await asyncio.gather(*tasks_to_execute)
+
+        # Process results
+        if generate_effects and not use_user_voice:
+            # Both effects and voice mapping are present
             prepared_texts = results[:-2]
             effects = results[-2]
             voice_mapping = results[-1]
-        else:
-            prepared_texts = results
-            character2props = {
-                char: CharacterPropertiesNullable(gender=None, age_group=None)
-                for char in text_split.characters
-            }
-            character2voice = {char: voice_id for char in text_split.characters}
+        elif generate_effects:
+            # Only effects are present
+            prepared_texts = results[:-1]
+            effects = results[-1]
             voice_mapping = SelectVoiceChainOutput(
-                character2props=character2props, character2voice=character2voice
+                character2props={
+                    char: CharacterPropertiesNullable(gender=None, age_group=None)
+                    for char in text_split.characters
+                },
+                character2voice={char: voice_id for char in text_split.characters},
+            )
+        elif not use_user_voice:
+            # Only voice mapping is present
+            prepared_texts = results[:-1]
+            effects = None
+            voice_mapping = results[-1]
+        else:
+            # Neither effects nor voice mapping
+            prepared_texts = results
+            effects = None
+            voice_mapping = SelectVoiceChainOutput(
+                character2props={
+                    char: CharacterPropertiesNullable(gender=None, age_group=None)
+                    for char in text_split.characters
+                },
+                character2voice={char: voice_id for char in text_split.characters},
             )
 
-        return (
-            prepared_texts,
-            effects,
-            voice_mapping,
-        )
+        return prepared_texts, effects, voice_mapping
 
-    def get_effect_params(self, text_split: SplitTextOutput, se_design_output: SoundEffectsDesignOutput):
+    def get_effect_params(
+        self, text_split: SplitTextOutput, se_design_output: SoundEffectsDesignOutput
+    ):
         effects_texts = [effect.prompt for effect in se_design_output.sound_effects_descriptions]
-        text_between_effects_texts = [effect.text_between_tags for effect in se_design_output.sound_effects_descriptions]
+        text_between_effects_texts = [
+            effect.text_between_tags for effect in se_design_output.sound_effects_descriptions
+        ]
 
         lines_for_sound_effect = []
         for text in text_between_effects_texts:
@@ -392,14 +428,17 @@ class AudiobookBuilder:
         debug_dp = os.path.join(out_dp_root, 'debug')
         os.makedirs(debug_dp)
 
-        if use_user_voice and voice_id is None:
+        if use_user_voice and not voice_id:
             yield None, "", self.html_generator.generate_message_without_voice_id()
 
-        # zero stage
-        yield None, "", self.html_generator.generate_status("Starting Process", [("Splitting text into characters...", False)])
+        else:
+            # zero stage
+            yield None, "", self.html_generator.generate_status(
+                "Starting Process", [("Splitting text into characters...", False)]
+            )
 
-        # first stage
-        with get_openai_callback() as cb:
+            # first stage
+            # with get_openai_callback() as cb:
             text_split = await self._split_text(text=text)
             text_split_dict_list = [item.model_dump() for item in text_split._phrases]
             for item in text_split_dict_list:
@@ -424,7 +463,11 @@ class AudiobookBuilder:
             )
 
             if generate_effects:
-                effects_texts, text_between_effects_texts, lines_for_sound_effect = self.get_effect_params(text_split, se_design_output)
+                (
+                    effects_texts,
+                    text_between_effects_texts,
+                    lines_for_sound_effect,
+                ) = self.get_effect_params(text_split, se_design_output)
                 text_split_html = generate_full_text_split_with_effect_html(
                     text_split_dict_list,
                     effects_texts,
@@ -436,9 +479,16 @@ class AudiobookBuilder:
                 [("Text splitting", True), ("Voice mapping", True), ("Generating audio...", False)],
             )
             text_split_result_html = self.html_generator.generate_text_split(text_split_html)
-            voice_assignments_html = generate_voice_assignments_html(select_voice_chain_out)
-            voice_assignments_result_html = self.html_generator.generate_voice_assignments(voice_assignments_html)
-            second_stage_result_html = status_html + text_split_result_html + voice_assignments_result_html + '</div>'
+            if not use_user_voice:
+                voice_assignments_html = generate_voice_assignments_html(select_voice_chain_out)
+                voice_assignments_result_html = self.html_generator.generate_voice_assignments(
+                    voice_assignments_html
+                )
+            else:
+                voice_assignments_result_html = ''
+            second_stage_result_html = (
+                status_html + text_split_result_html + voice_assignments_result_html + '</div>'
+            )
             yield None, "", second_stage_result_html
 
             # third stage
@@ -452,7 +502,9 @@ class AudiobookBuilder:
             os.makedirs(tts_dp)
             tts_out = await self._generate_tts_audio(tts_params_list=tts_params_list, out_dp=tts_dp)
 
-            self._save_tts_debug_data(tts_params_list=tts_params_list, tts_out=tts_out, out_dp=debug_dp)
+            self._save_tts_debug_data(
+                tts_params_list=tts_params_list, tts_out=tts_out, out_dp=debug_dp
+            )
 
             if generate_effects:
                 se_descriptions = se_design_output.sound_effects_descriptions
@@ -530,6 +582,12 @@ class AudiobookBuilder:
                 "Process Complete ✨",
                 [("Text splitting", True), ("Voice mapping", True), ("Audio generation", True)],
             )
-            third_stage_result_html = status_html + text_split_result_html + voice_assignments_result_html + self.html_generator.generate_final_message() + '</div>'
+            third_stage_result_html = (
+                status_html
+                + text_split_result_html
+                + voice_assignments_result_html
+                + self.html_generator.generate_final_message()
+                + '</div>'
+            )
             yield final_audio_fp, "", third_stage_result_html
-        logger.info(f'end of the process. openai callback stats: {cb}')
+        # logger.info(f'end of the process. openai callback stats: {cb}')
