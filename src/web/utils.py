@@ -3,10 +3,29 @@ from src.web.variables import EFFECT_CSS
 
 
 def create_status_html(status: str, steps: list[tuple[str, bool]]) -> str:
+    # CSS for the spinner animation
+    spinner_css = """
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid #e0e0e0;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+    """
+
     steps_html = "\n".join(
         [
             f'<div class="step-item" style="display: flex; align-items: center; padding: 0.8rem; margin-bottom: 0.5rem; background-color: #31395294; border-radius: 6px; font-weight: 600;">'
-            f'<span class="step-icon" style="margin-right: 1rem; font-size: 1.3rem;">{("✅" if completed else "🔄")}</span>'
+            f'<span class="step-icon" style="margin-right: 1rem; font-size: 1.3rem;">'
+            f'{"✅" if completed else "<div class='spinner'></div>"}'
+            f'</span>'
             f'<span class="step-text" style="font-size: 1.1rem; color: #e0e0e0;">{step}</span>'
             f'</div>'
             for step, completed in steps
@@ -15,15 +34,18 @@ def create_status_html(status: str, steps: list[tuple[str, bool]]) -> str:
 
     return f'''
     <div class="status-container" style="font-family: system-ui; max-width: 1472px; margin: 0 auto; background-color: #31395294; padding: 1rem; border-radius: 8px; color: #f0f0f0;">
+        <style>
+            {spinner_css}
+        </style>
         <div class="status-header" style="background: #31395294; padding: 1rem; border-radius: 8px; font-weight: bold;">
             <h3 class="status-title" style="margin: 0; color: rgb(224, 224, 224); font-size: 1.5rem; font-weight: 700;">Status: {status}</h3>
             <p class="status-description" style="margin: 0.5rem 0 0 0; color: #c0c0c0; font-size: 1rem; font-weight: 400;">Processing steps below.</p>
         </div>
         <div class="steps" style="margin-top: 1rem;">
             {steps_html}
+        </div>
     </div>
     '''
-
 
 def create_effect_span(text: str, effect_description: str, bg_color: str) -> str:
     """Create an HTML span with effect tooltip."""
