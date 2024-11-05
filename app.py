@@ -110,7 +110,7 @@ with gr.Blocks(js=DESCRIPTION_JS, theme=GRADIO_THEME) as ui:
     error_output = gr.Textbox(label="Error Message", interactive=False, visible=False)
 
     effects_generation_checkbox = gr.Checkbox(
-        label="Add background effects",
+        label="Add sound effects",
         value=False,
         info="Select if you want to add occasional sound effect to the audiobook",
     )

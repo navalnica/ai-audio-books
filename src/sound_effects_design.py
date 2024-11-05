@@ -42,7 +42,7 @@ class SoundEffectsDesignOutput(BaseModel):
         # TODO: allow to open-close tags
         # <effect prompt=\"(.*?)\" duration=\"(.*)\"/>
 
-        pattern = re.compile(r"<effect prompt=\"(.*?)\">(.*?)</effect>")
+        pattern = re.compile(r"<effect prompt=(?:\"|')(.*?)(?:\"|'>)(.*?)</effect>")
         all_matches = list(pattern.finditer(text))
 
         sound_effects_descriptions = []

@@ -150,8 +150,8 @@ class AudiobookBuilder:
 
         return TTSPhrasesGenerationOutput(audio_fps=tts_audio_fps, char2time=char2time)
 
-    @staticmethod
     def _update_sound_effects_descriptions_with_durations(
+        self,
         sound_effects_descriptions: list[SoundEffectDescription],
         char2time: TTSTimestampsAlignment,
     ) -> list[SoundEffectDescription]:
@@ -160,29 +160,31 @@ class AudiobookBuilder:
             time_start = char2time.get_start_time_by_char_ix(ix_start, safe=True)
             time_end = char2time.get_end_time_by_char_ix(ix_end, safe=True)
             duration = time_end - time_start
+            # apply min effect duration
+            duration = max(self.min_sound_effect_duration_sec, duration)
             # update inplace
             sed.start_sec = time_start
             sed.duration_sec = duration
         return sound_effects_descriptions
 
-    def _filter_short_sound_effects(
-        self,
-        sound_effects_descriptions: list[SoundEffectDescription],
-    ) -> list[SoundEffectDescription]:
-        filtered = [
-            sed
-            for sed in sound_effects_descriptions
-            if sed.duration_sec > self.min_sound_effect_duration_sec
-        ]
+    # def _filter_short_sound_effects(
+    #     self,
+    #     sound_effects_descriptions: list[SoundEffectDescription],
+    # ) -> list[SoundEffectDescription]:
+    #     filtered = [
+    #         sed
+    #         for sed in sound_effects_descriptions
+    #         if sed.duration_sec > self.min_sound_effect_duration_sec
+    #     ]
 
-        len_orig = len(sound_effects_descriptions)
-        len_new = len(filtered)
-        logger.info(
-            f'{len_new} out of {len_orig} original sound effects are kept '
-            f'after filtering by min duration: {self.min_sound_effect_duration_sec}'
-        )
+    #     len_orig = len(sound_effects_descriptions)
+    #     len_new = len(filtered)
+    #     logger.info(
+    #         f'{len_new} out of {len_orig} original sound effects are kept '
+    #         f'after filtering by min duration: {self.min_sound_effect_duration_sec}'
+    #     )
 
-        return filtered
+    #     return filtered
 
     def _sound_effects_description_2_generation_params(
         self,
@@ -259,10 +261,7 @@ class AudiobookBuilder:
         utils.write_json(data, fp=out_fp)
 
     @staticmethod
-    def _normalize_audio_files(
-        audio_fps: list[str], out_dp: str, target_dBFS: float = -20.0
-    ) -> list[str]:
-        """Normalize all audio chunks to the target volume level."""
+    def _postprocess_tts_audio(audio_fps: list[str], out_dp: str, target_dBFS: float) -> list[str]:
         fps = []
         for in_fp in audio_fps:
             audio_segment = AudioSegment.from_file(in_fp)
@@ -270,6 +269,25 @@ class AudiobookBuilder:
 
             out_fp = os.path.join(out_dp, f"{Path(in_fp).stem}.normalized.wav")
             normalized_audio.export(out_fp, format="wav")
+            fps.append(out_fp)
+
+        return fps
+
+    @staticmethod
+    def _postprocess_sound_effects(
+        audio_fps: list[str], out_dp: str, target_dBFS: float, fade_ms: int
+    ) -> list[str]:
+        fps = []
+        for in_fp in audio_fps:
+            audio_segment = AudioSegment.from_file(in_fp)
+
+            processed = utils.normalize_audio(audio_segment, target_dBFS)
+
+            processed = processed.fade_in(duration=fade_ms)
+            processed = processed.fade_out(duration=fade_ms)
+
+            out_fp = os.path.join(out_dp, f"{Path(in_fp).stem}.postprocessed.wav")
+            processed.export(out_fp, format="wav")
             fps.append(out_fp)
 
         return fps
@@ -509,9 +527,10 @@ class AudiobookBuilder:
                     sound_effects_descriptions=se_descriptions, char2time=tts_out.char2time
                 )
 
-                se_descriptions = self._filter_short_sound_effects(
-                    sound_effects_descriptions=se_descriptions
-                )
+                # no need in filtering, since we ensure the min duration above
+                # se_descriptions = self._filter_short_sound_effects(
+                #     sound_effects_descriptions=se_descriptions
+                # )
 
                 se_params = self._sound_effects_description_2_generation_params(
                     sound_effects_descriptions=se_descriptions
@@ -541,18 +560,21 @@ class AudiobookBuilder:
 
             tts_normalized_dp = os.path.join(out_dp_root, 'tts_normalized')
             os.makedirs(tts_normalized_dp)
-            tts_norm_fps = self._normalize_audio_files(
-                audio_fps=tts_out.audio_fps, out_dp=tts_normalized_dp
+            tts_norm_fps = self._postprocess_tts_audio(
+                audio_fps=tts_out.audio_fps,
+                out_dp=tts_normalized_dp,
+                target_dBFS=-20,
             )
 
             if generate_effects:
-                se_normalized_dp = os.path.join(out_dp_root, 'sound_effects_normalized')
+                se_normalized_dp = os.path.join(out_dp_root, 'sound_effects_postprocessed')
                 os.makedirs(se_normalized_dp)
-                se_norm_fps = self._normalize_audio_files(audio_fps=se_fps, out_dp=se_normalized_dp)
-
-                # TODO: apply fade-in and fade-out for each sound effect
-                # TODO: decrease volume of overlayed sound effects
-                # (prev pydub code used gain decrease of 5 units)
+                se_norm_fps = self._postprocess_sound_effects(
+                    audio_fps=se_fps,
+                    out_dp=se_normalized_dp,
+                    target_dBFS=-27,
+                    fade_ms=500,
+                )
 
             tts_concat_fp = os.path.join(out_dp_root, f'audiobook_{now_str}.wav')
             self._concatenate_audiofiles(audio_fps=tts_norm_fps, out_wav_fp=tts_concat_fp)
