@@ -148,7 +148,6 @@ def generate_voice_assignments_html(select_voice_chain_out):
         )
 
         result_voice_chain_out[replace_labels(key)] = character_props
-
     voice_assignments_html = ""
     for character, voice_properties in result_voice_chain_out.items():
         color = get_character_color(character)
@@ -170,4 +169,4 @@ def generate_voice_assignments_html(select_voice_chain_out):
                     </div>
                     '''
 
-        return voice_assignments_html
+    return voice_assignments_html
