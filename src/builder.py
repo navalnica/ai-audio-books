@@ -1,7 +1,8 @@
 import asyncio
 import os
+from asyncio import TaskGroup
 from pathlib import Path
-from typing import Callable, Any
+from typing import Callable, Any, List
 from uuid import uuid4
 
 from langchain_community.callbacks import get_openai_callback
@@ -330,62 +331,57 @@ class AudiobookBuilder:
         voice_id: str = None,
     ):
         semaphore = asyncio.Semaphore(OPENAI_MAX_PARALLEL)
+        prepared_texts: List[Any] = []
+        effects = None
+        voice_mapping = None
 
-        # Create tasks for emotion processing
-        emotion_tasks = [
-            self.create_emotion_text_task(semaphore, phrase.text)
-            for phrase in text_split.phrases
-        ]
+        async with TaskGroup() as tg:
+            # Create emotion processing tasks
+            emotion_tasks = [
+                tg.create_task(
+                    self.process_single_task(
+                        semaphore=semaphore,
+                        func=self.text_tts_processor.run,
+                        text=phrase.text,
+                    ),
+                    name=f"emotion_task_{i}"
+                )
+                for i, phrase in enumerate(text_split.phrases)
+            ]
 
-        # Create effect task if needed
-        effect_task = None
+            # Create effect task if needed
+            effect_task = None
+            if generate_effects:
+                effect_task = tg.create_task(
+                    self.process_single_task(
+                        semaphore=semaphore,
+                        func=self._design_sound_effects,
+                        text=full_text,
+                    ),
+                    name="effect_task"
+                )
+
+            # Create voice mapping task if needed
+            voice_mapping_task = None
+            if not use_user_voice:
+                voice_mapping_task = tg.create_task(
+                    self.process_single_task(
+                        semaphore=semaphore,
+                        func=self._map_characters_to_voices,
+                        text_split=text_split,
+                    ),
+                    name="voice_mapping_task"
+                )
+
+        # Process results after all tasks are complete
+        prepared_texts = [task.result() for task in emotion_tasks]
+
         if generate_effects:
-            effect_task = await self.create_effect_text_task(semaphore, full_text)
+            effects = effect_task.result()
 
-        # Create voice mapping task if needed
-        voice_mapping_task = None
         if not use_user_voice:
-            voice_mapping_task = await self.create_voice_mapping_task(
-                semaphore=semaphore,
-                text_split=text_split,
-            )
-
-        # Gather all tasks that need to be executed
-        tasks_to_execute = [*emotion_tasks]
-        if effect_task:
-            tasks_to_execute.append(effect_task)
-        if voice_mapping_task:
-            tasks_to_execute.append(voice_mapping_task)
-
-        # Wait for all tasks to complete
-        results = await asyncio.gather(*tasks_to_execute)
-
-        # Process results
-        if generate_effects and not use_user_voice:
-            # Both effects and voice mapping are present
-            prepared_texts = results[:-2]
-            effects = results[-2]
-            voice_mapping = results[-1]
-        elif generate_effects:
-            # Only effects are present
-            prepared_texts = results[:-1]
-            effects = results[-1]
-            voice_mapping = SelectVoiceChainOutput(
-                character2props={
-                    char: CharacterPropertiesNullable(gender=None, age_group=None)
-                    for char in text_split.characters
-                },
-                character2voice={char: voice_id for char in text_split.characters},
-            )
-        elif not use_user_voice:
-            # Only voice mapping is present
-            prepared_texts = results[:-1]
-            effects = None
-            voice_mapping = results[-1]
+            voice_mapping = voice_mapping_task.result()
         else:
-            # Neither effects nor voice mapping
-            prepared_texts = results
-            effects = None
             voice_mapping = SelectVoiceChainOutput(
                 character2props={
                     char: CharacterPropertiesNullable(gender=None, age_group=None)
@@ -497,7 +493,7 @@ class AudiobookBuilder:
                 tts_params_list=tts_params_list,
                 character2voice=select_voice_chain_out.character2voice,
             )
-
+            # print(tts_params_list)
             tts_dp = os.path.join(out_dp_root, 'tts')
             os.makedirs(tts_dp)
             tts_out = await self._generate_tts_audio(tts_params_list=tts_params_list, out_dp=tts_dp)
