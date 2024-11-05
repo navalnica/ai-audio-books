@@ -483,10 +483,9 @@ EFFECT_CSS = """
         }
 
         .effect-text {
-            background-color: rgba(187, 185, 81, 0.97);
             padding: 2px 4px;
-            border-radius: 3px;
-            border-bottom: 2px dashed rgba(0, 0, 0, 0.83);
+            border-radius: 0px;
+            border-bottom: 4px solid rgba(187, 185, 81, 0.97);
             cursor: help;
         }
 
