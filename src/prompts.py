@@ -83,23 +83,31 @@ you must insert XML tags containing prompts for AI model describing sound effect
 XML effect tags must have following structure:
 <effect prompt="prompt to be passed to text-to-sound-effect AI model">original line from the text</effect>
 
-WRITE PROMPTS TO BE RICH IN DETAILS, precisely describing the effect!
+WRITE PROMPTS TO BE VERY RICH IN DETAILS, precisely describing the effect!
+Your prompts MUST BE SPECIFIC, AVOID ABSTRACT sounds like "sound of a cozy room".
 
 Generated sound effect will be overlayed over the text between the opening and the closing effect XML tag.
 Use tags position to control start time of the effect and its duration.
 
 Additional requirements:
 - In the very beginning, analyze the whole text chunk provided in order to understand events and atmosphere.
-- NEVER generate background music
-- NEVER genearate ambient sounds, for example people's voices, sound of the crowd
 - Aim for episodical sound effects, highlighting atmosphere and characters' actions.
-For example, cracking of stairs, wind blowing, car honks, sound of a falling book
-- The following is the example of a bad prompt: "brief silence, creating a moment of tension".
-It is very short, not specific and is an ambient sound.
+For example, cracking of stairs, wind blowing, car honks, sound of a falling book, ticking clock
+- NEVER generate background music
+- NEVER generate ambient sounds, for example people's voices, sound of the crowd
+- NEVER generate sounds for gestures, for example for a hand raised in the air.
+- NEVER generate effects for sounds people may produce: laughing, giggling, sobbing, crying, talking, singing, screaming.
 - The text-to-sound-effects model is able to generate only short audio files, up to 5 seconds long
 - Aim to position sound effects at the most intuitive points for a natural, immersive experience.
 For example, instead of placing the sound effect only on a single word or object (like "stairs"),
 tag a broader phrase making the effect feel part of the action or dialogue.
+- It's allowed to add no sound effects
+
+Example of a good prompt:
+"Old wooden staircase creaking under slow footsteps, each step producing uneven crackles, groans, and occasional sharp snaps, emphasizing age and fragility in a quiet, echoing space" - it's specific and rich in details
+
+Example of a bad prompt:
+"brief silence, creating a moment of tension" - it's too short, not specific and is an ambient sound.
 
 Response with the original text with selected phrases wrapped inside emotion XML tags.
 Do not modify original text!
