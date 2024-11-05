@@ -76,7 +76,7 @@ def refresh():
     return None, None, None, STATUS_DISPLAY_HTML
 
 
-with gr.Blocks(js=DESCRIPTION_JS, theme=GRADIO_THEME) as ui:
+with gr.Blocks(js=DESCRIPTION_JS, theme=GRADIO_THEME, css="footer{display:none !important}") as ui:
     with gr.Row(variant="panel"):
         text_input = gr.Textbox(label="Enter the book text here", lines=15)
         file_input = gr.File(
