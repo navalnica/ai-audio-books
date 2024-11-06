@@ -4,10 +4,7 @@ from src.web.utils import create_status_html
 class HTMLGenerator:
     @staticmethod
     def generate_error(text: str) -> str:
-        return (
-            create_status_html("Error", [])
-            + f'<div class="error-message" style="color: #e53e3e;">{text}</div></div>'
-        )
+        return create_status_html("Error", [], error_text=text)
 
     @staticmethod
     def generate_status(stage_title: str, steps: list[tuple[str, bool]]) -> str:

@@ -10,7 +10,7 @@ from src.utils import (
 from src.web.variables import EFFECT_CSS
 
 
-def create_status_html(status: str, steps: list[tuple[str, bool]]) -> str:
+def create_status_html(status: str, steps: list[tuple[str, bool]], error_text: str = '') -> str:
     # CSS for the spinner animation
     spinner_css = """
         @keyframes spin {
@@ -40,6 +40,11 @@ def create_status_html(status: str, steps: list[tuple[str, bool]]) -> str:
         ]
     )
 
+    if error_text:
+        error_html = f'<div class="error-message" style="color: #e53e3e; font-size: 1.2em;">{error_text}</div></div>'
+    else:
+        error_html = ''
+
     return f'''
     <div class="status-container" style="font-family: system-ui; max-width: 1472px; margin: 0 auto; background-color: #31395294; padding: 1rem; border-radius: 8px; color: #f0f0f0;">
         <style>
@@ -48,6 +53,7 @@ def create_status_html(status: str, steps: list[tuple[str, bool]]) -> str:
         <div class="status-header" style="background: #31395294; padding: 1rem; border-radius: 8px; font-weight: bold;">
             <h3 class="status-title" style="margin: 0; color: rgb(224, 224, 224); font-size: 1.5rem; font-weight: 700;">Status: {status}</h3>
             <p class="status-description" style="margin: 0.5rem 0 0 0; color: #c0c0c0; font-size: 1rem; font-weight: 400;">Processing steps below.</p>
+            {error_html}
         </div>
         <div class="steps" style="margin-top: 1rem;">
             {steps_html}

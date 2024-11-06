@@ -49,8 +49,8 @@ async def audiobook_builder(
     uploaded_file,
     generate_effects: bool,
     use_user_voice: bool,
-    voice_id: str = None,
-) -> tuple[Path | None, str, str]:
+    voice_id: str | None = None,
+):
     builder = AudiobookBuilder()
 
     if uploaded_file is not None:
@@ -58,17 +58,28 @@ async def audiobook_builder(
             text = load_text_from_file(uploaded_file=uploaded_file)
         except Exception as e:
             logger.exception(e)
-            yield None, str(e), builder.html_generator.generate_error("Failed to process file.")
+            msg = "Failed to load text from the provided document"
+            gr.Warning(msg)
+            yield None, str(e), builder.html_generator.generate_error(msg)
+            return
+
+    if not text:
+        logger.info(f"No text was passed. can't generate an audiobook")
+        msg = 'Please provide the text to generate audiobook from'
+        gr.Warning(msg)
+        yield None, "", builder.html_generator.generate_error(msg)
+        return
 
     if (text_len := len(text)) > MAX_TEXT_LEN:
-        gr.Warning(
+        msg = (
             f"Input text length of {text_len} characters "
             f"exceeded current limit of {MAX_TEXT_LEN} characters. "
             "Please input a shorter text."
         )
-        yield None, "", builder.html_generator.generate_error(
-            "Text too long. Please input a shorter text."
-        )
+        logger.info(msg)
+        gr.Warning(msg)
+        yield None, "", builder.html_generator.generate_error(msg)
+        return
 
     async for stage in builder.run(text, generate_effects, use_user_voice, voice_id):
         yield stage
