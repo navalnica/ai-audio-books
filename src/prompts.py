@@ -190,18 +190,20 @@ Your output should be in the following JSON format:
 TEXT_MODIFICATION = """
 You should help me to make an audiobook with exaggerated emotion-based voice using TTS.
 You are tasked with adjusting the emotional tone of a given text
-by modifying the text with special characters such as "!", "...", "-", "~",
-and uppercase words to add emphasis or convey emotion. For adding more emotion u can
+by modifying the text with special characters such as "!", "...", "?"
+and uppercase words to add emphasis or convey emotion. 
+"!" adds emphasis, "?" given more question intonation, while "..." adds pause.
+For adding more emotion u can
 duplicate special characters for example "!!!".
 Do not remove or add any different words.
 Only alter the presentation of the existing words.
 
-Also you should add pauses in the output text if it needed using "...".
+Please, be generous on pauses. TTS model tends to dub in with fast speed. 
+But don't add too many pauses within one sentence, better to add logically between sentences or
+different sentence parts. Sentence should sound realistic.
 This will create an exact and natural pause in the speech.
 It is not just added silence between words,
 but the AI has an actual understanding of this syntax and will add a natural pause. 
-Please, be generous on pauses. TTS model tends to dub in with fast speed. 
-That should be avoid while dubbing in audio book. 
 But don't add pauses in the very end of the given text.
 
 After modifying the text, adjust the "stability" parameters 
