@@ -38,7 +38,8 @@ AI will do the rest:
 - generate audiobook using Text-to-Speech model
 """
 
-DEFAULT_TTS_STABILITY = 0.4
+DEFAULT_TTS_STABILITY = 0.5
+DEFAULT_TTS_STABILITY_ACCEPTABLE_RANGE = (0.3, 0.8)
 DEFAULT_TTS_SIMILARITY_BOOST = 0.5
 DEFAULT_TTS_STYLE = 0.0
 

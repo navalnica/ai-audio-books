@@ -188,7 +188,7 @@ Your output should be in the following JSON format:
 
 
 TEXT_MODIFICATION = """
-You should help me to make an audiobook with realistic emotion-based voice using TTS.
+You should help me to make an audiobook with exaggerated emotion-based voice using TTS.
 You are tasked with adjusting the emotional tone of a given text
 by modifying the text with special characters such as "!", "...", "-", "~",
 and uppercase words to add emphasis or convey emotion. For adding more emotion u can
@@ -196,8 +196,7 @@ duplicate special characters for example "!!!".
 Do not remove or add any different words.
 Only alter the presentation of the existing words.
 
-Also you should add pause in the output text if it needed using "..." or <break> tag. 
-The most consistent way is programmatically using the syntax <break time="1.5s" />. or any time in second if it fit to the text
+Also you should add pauses in the output text if it needed using "...".
 This will create an exact and natural pause in the speech.
 It is not just added silence between words,
 but the AI has an actual understanding of this syntax and will add a natural pause. 
@@ -214,7 +213,7 @@ Your output should be in the following JSON format:
   "stability": 0.4,
 }
 
-The "stability" parameter should range from 0.2 to 0.7,
+The "stability" parameter should range from 0.3 to 0.8,
 with lower values indicating a more expressive, less stable voice.
 
 Example of text that could be passed:

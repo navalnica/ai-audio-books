@@ -3,7 +3,11 @@ import json
 import openai
 from elevenlabs import VoiceSettings
 
-from src.config import OPENAI_API_KEY, logger, DEFAULT_TTS_STABILITY, DEFAULT_TTS_SIMILARITY_BOOST, DEFAULT_TTS_STYLE
+from src.config import (
+    OPENAI_API_KEY,
+    logger,
+    DEFAULT_TTS_STABILITY, DEFAULT_TTS_SIMILARITY_BOOST, DEFAULT_TTS_STYLE, DEFAULT_TTS_STABILITY_ACCEPTABLE_RANGE
+)
 from src.schemas import TTSParams
 from src.utils import GPTModels, auto_retry
 
@@ -21,6 +25,9 @@ class TTSTextProcessor:
     def _wrap_results(data: dict, default_text: str) -> TTSParams:
         modified_text = data.get('modified_text', default_text)
         stability = data.get('stability', DEFAULT_TTS_STABILITY)
+        stability = stability \
+            if DEFAULT_TTS_STABILITY_ACCEPTABLE_RANGE[0] <= stability <= DEFAULT_TTS_STABILITY_ACCEPTABLE_RANGE[1] \
+            else DEFAULT_TTS_STABILITY
         similarity_boost = DEFAULT_TTS_SIMILARITY_BOOST
         style = DEFAULT_TTS_STYLE
 
