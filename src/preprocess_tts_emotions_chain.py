@@ -11,10 +11,10 @@ from src.config import (
 from src.schemas import TTSParams
 from src.utils import GPTModels, auto_retry
 
-from src.prompts import TEXT_MODIFICATION
+from src.prompts import EMOTION_STABILITY_MODIFICATION
 
 
-class TTSTextProcessor:
+class TTSParamProcessor:
 
     # TODO: refactor to langchain function (?)
 
@@ -23,7 +23,6 @@ class TTSTextProcessor:
 
     @staticmethod
     def _wrap_results(data: dict, default_text: str) -> TTSParams:
-        modified_text = data.get('modified_text', default_text)
         stability = data.get('stability', DEFAULT_TTS_STABILITY)
         stability = stability \
             if DEFAULT_TTS_STABILITY_ACCEPTABLE_RANGE[0] <= stability <= DEFAULT_TTS_STABILITY_ACCEPTABLE_RANGE[1] \
@@ -34,7 +33,7 @@ class TTSTextProcessor:
         params = TTSParams(
             # NOTE: voice will be set later in the builder pipeline
             voice_id='',
-            text=modified_text,
+            text=default_text,
             # reference: https://elevenlabs.io/docs/speech-synthesis/voice-settings
             voice_settings=VoiceSettings(
                 stability=stability,
@@ -52,7 +51,7 @@ class TTSTextProcessor:
         completion = await self.client.chat.completions.create(
             model=GPTModels.GPT_4o,
             messages=[
-                {"role": "system", "content": TEXT_MODIFICATION},
+                {"role": "system", "content": EMOTION_STABILITY_MODIFICATION},
                 {"role": "user", "content": text_prepared},
             ],
             response_format={"type": "json_object"},

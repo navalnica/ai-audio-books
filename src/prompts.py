@@ -23,6 +23,32 @@ Here is the book sample:
 {text}"""
 
 
+class ModifyTextPrompt:
+    SYSTEM = """\
+You are provided with the book sample.
+You should help me to make an audiobook with exaggerated emotion-based voice using TTS.
+You are tasked with adjusting the emotional tone of a given text
+by modifying the text with special characters such as "!", "...", "?"
+and uppercase words to add emphasis or convey emotion. 
+"!" adds emphasis, "?" given more question intonation, while "..." adds pause. 
+
+For example:
+Text: "I can't believe this is happening. Who would expect it?"
+Output text: "I CAN'T believe this is happening... Who would expect it??"
+
+Notes:
+- Do not remove or add any different words! Only alter the presentation of the existing words.
+- For adding more emotion u can duplicate special characters for example "!!!".
+- Be generous on pauses between sentences or clear different sentence parts. TTS model tends to dub in with fast speed. 
+- But don't add too many pauses within one sentence, better to add it logically. Sentence should sound realistically.
+- DO NOT add pauses in the very end of the given text!
+"""
+
+    USER = """\
+Here is the book sample:
+---
+{text}"""
+
 class CharacterVoicePropertiesPrompt:
     SYSTEM = """\
 You are a helpful assistant proficient in literature and psychology.
@@ -187,31 +213,17 @@ Your output should be in the following JSON format:
 }}"""
 
 
-TEXT_MODIFICATION = """
+EMOTION_STABILITY_MODIFICATION = """
 You should help me to make an audiobook with exaggerated emotion-based voice using TTS.
-You are tasked with adjusting the emotional tone of a given text
-by modifying the text with special characters such as "!", "...", "?"
-and uppercase words to add emphasis or convey emotion. 
-"!" adds emphasis, "?" given more question intonation, while "..." adds pause.
-For adding more emotion u can duplicate special characters for example "!!!".
-Do not remove or add any different words.
-Only alter the presentation of the existing words.
-
-Please, be generous on pauses. TTS model tends to dub in with fast speed. 
-But don't add too many pauses within one sentence, better to add it logically between sentences or
-clear different sentence parts. Sentence should sound realistically.
-This will create an exact and natural pause in the speech, because TTS tends to dub in too fast.
-It is not just added silence between words,
-but the AI has an actual understanding of this syntax and will add a natural pause. 
-Don't add pauses in the very end of the given text. 
-
-After modifying the text, adjust the "stability" parameter
-according to the level of emotional intensity in the modified text.
+You are tasked with adjusting the emotional tone of a given text by adjust the "stability" parameter
+according to the level of emotional intensity in the given text.
+Provided text was previously modified by caps and symbols ("!", "?", "...").
+If they presented a lot in the provided text, please, make text more emotional.
 Higher emotional intensity should lower the "stability". 
+
 Your output should be in the following JSON format:
 {
-  "modified_text": "Modified text with emotional adjustments.",
-  "stability": 0.4,
+  "stability": 0.5,
 }
 
 The "stability" parameter should range from 0.3 to 0.8,
@@ -219,7 +231,11 @@ with lower values indicating a more expressive, less stable voice.
 
 Example of text that could be passed:
 
-Text: "I can't believe this is happening."
+Text: "I CAN'T believe this is happening... Who would expect it??"
+Expected output:
+{
+  "stability": 0.4,
+}
 """
 
 # TODO: this prompt is not used

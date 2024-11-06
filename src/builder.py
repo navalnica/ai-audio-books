@@ -11,7 +11,7 @@ from pydub import AudioSegment
 from src import tts, utils
 from src.config import ELEVENLABS_MAX_PARALLEL, OPENAI_MAX_PARALLEL, logger, CONTEXT_CHAR_LEN_FOR_TTS
 from src.lc_callbacks import LCMessageLoggerAsync
-from src.preprocess_tts_text_chain import TTSTextProcessor
+from src.preprocess_tts_emotions_chain import TTSParamProcessor
 from src.schemas import SoundEffectsParams, TTSParams, TTSTimestampsAlignment, TTSTimestampsResponse
 from src.select_voice_chain import SelectVoiceChainOutput, VoiceSelector
 from src.sound_effects_design import (
@@ -20,6 +20,7 @@ from src.sound_effects_design import (
     create_sound_effects_design_chain,
 )
 from src.text_split_chain import SplitTextOutput, create_split_text_chain
+from src.text_modification_chain import modify_text_chain
 from src.utils import GPTModels
 
 
@@ -32,11 +33,21 @@ class AudiobookBuilder:
 
     def __init__(self, rm_artifacts: bool = False):
         self.voice_selector = VoiceSelector()
-        self.text_tts_processor = TTSTextProcessor()
+        self.params_tts_processor = TTSParamProcessor()
         self.rm_artifacts = rm_artifacts
         self.min_sound_effect_duration_sec = 1
         self.sound_effects_prompt_influence = 0.75  # seems to work nicely
         self.name = type(self).__name__
+
+    @staticmethod
+    async def _modify_text(text: str) -> str:
+        chain = modify_text_chain(llm_model=GPTModels.GPT_4o)
+        with get_openai_callback() as cb:
+            result = await chain.ainvoke(
+                {"text": text}, config={"callbacks": [LCMessageLoggerAsync()]}
+            )
+        logger.info(f'End of modifying text with caps and symbols(?, !, ...). Openai callback stats: {cb}')
+        return result.text_modified
 
     @staticmethod
     async def _split_text(text: str) -> SplitTextOutput:
@@ -76,7 +87,7 @@ class AudiobookBuilder:
         logger.info(f'end of mapping characters to voices. openai callback stats: {cb}')
         return chain_out
 
-    async def _prepare_text_for_tts(self, text_split: SplitTextOutput) -> list[TTSParams]:
+    async def _prepare_params_for_tts(self, text_split: SplitTextOutput) -> list[TTSParams]:
         semaphore = asyncio.Semaphore(OPENAI_MAX_PARALLEL)
 
         async def run_task_with_semaphore(func, **params):
@@ -89,7 +100,7 @@ class AudiobookBuilder:
         for character_phrase in text_split.phrases:
             tasks.append(
                 run_task_with_semaphore(
-                    func=self.text_tts_processor.run,
+                    func=self.params_tts_processor.run,
                     text=character_phrase.text,
                 )
             )
@@ -342,16 +353,18 @@ class AudiobookBuilder:
             # TODO: currenly, we are constantly writing and reading audio segments from files.
             # I think it will be more efficient to keep all audio in memory.
 
-            text_split = await self._split_text(text=text)
+            modified_text = await self._modify_text(text=text)
+
+            text_split = await self._split_text(text=modified_text)
             self._save_text_split_debug_data(text_split=text_split, out_dp=debug_dp)
 
             # TODO: call sound effects chain in parallel with text split chain
             if generate_effects:
-                se_design_output = await self._design_sound_effects(text=text)
+                se_design_output = await self._design_sound_effects(text=modified_text)
 
             # TODO: run these 2 chains in parallel
             select_voice_chain_out = await self._map_characters_to_voices(text_split=text_split)
-            tts_params_list = await self._prepare_text_for_tts(text_split=text_split)
+            tts_params_list = await self._prepare_params_for_tts(text_split=text_split)
 
             tts_params_list = self._add_voice_ids_to_tts_params(
                 text_split=text_split,
