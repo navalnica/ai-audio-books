@@ -89,23 +89,28 @@ def create_regular_span(text: str, bg_color: str) -> str:
 def _generate_legend_for_text_split_html(
     character_phrases: list[CharacterPhrase], add_effect_legend: bool = False
 ) -> str:
-    legend_html = "<div style='margin-bottom: 1rem;'>"
-    legend_html += "<div style='font-size: 1.35em; font-weight: bold;'>Legend:</div>"
+    html = (
+        "<div style='margin-bottom: 1rem;'>"
+        "<div style='font-size: 1.35em; font-weight: bold;'>Legend:</div>"
+    )
 
     unique_characters = set(phrase.character or 'Unassigned' for phrase in character_phrases)
-    unique_characters = sorted(unique_characters, key=lambda c: c.lower())
-    for character in unique_characters:
+    characters_sorted = sorted(unique_characters, key=lambda c: c.lower())
+
+    for character in characters_sorted:
         color = get_character_color(character)
-        legend_html += f"<div style='color: {color}; font-size: 1.1em; margin-bottom: 0.25rem;'>{character}</div>"
+        html += f"<div style='color: {color}; font-size: 1.1em; margin-bottom: 0.25rem;'>{character}</div>"
+
     if add_effect_legend:
-        legend_html += (
+        html += (
             '<div style="font-size: 1.1em; margin-bottom: 0.25rem;">'
             '<span class="effect-text">🎵 #1</span>'
             ' - sound effect start position (hover to see the prompt)'
             '</div>'
         )
-    legend_html += "</div>"
-    return legend_html
+
+    html += "</div>"
+    return html
 
 
 def _generate_text_split_html(
@@ -212,102 +217,23 @@ def generate_text_split_inner_html_with_effects(
 
 
 def generate_voice_mapping_inner_html(select_voice_chain_out):
-    result_voice_chain_out = {}
+    character2props = {}
+    html = AUDIO_PLAYER_CSS
+
     for key in set(select_voice_chain_out.character2props) | set(
-            select_voice_chain_out.character2voice
+        select_voice_chain_out.character2voice
     ):
         character_props = select_voice_chain_out.character2props.get(key, []).model_dump()
         character_props["voice_id"] = select_voice_chain_out.character2voice.get(key, [])
-        character_props["sample_audio_url"] = get_audio_from_voice_id(
-            character_props["voice_id"]
-        )
+        character_props["sample_audio_url"] = get_audio_from_voice_id(character_props["voice_id"])
 
-        result_voice_chain_out[prettify_unknown_character_label(key)] = character_props
+        character2props[prettify_unknown_character_label(key)] = character_props
 
-    result_voice_chain_out = dict(sorted(result_voice_chain_out.items(), key=lambda x: x[0].lower()))
-
-    audio_player_css = """
-            <style>
-                .custom-audio-player {
-                    display: inline-block;
-                    width: 250px;
-                    --bg-color: #ff79c6;
-                    --highlight-color: #4299e100;
-                    --text-color: #e0e0e0;
-                    --border-radius: 0px;
-                }
-
-                .custom-audio-player audio {
-                    width: 100%;
-                    height: 36px;
-                    border-radius: var(--border-radius);
-                    background-color: #3f2a2a00;
-                    outline: none;
-                }
-
-                .custom-audio-player audio::-webkit-media-controls-panel {
-                    background-color: var(--bg-color);
-                }
-
-                .custom-audio-player audio::-webkit-media-controls-current-time-display,
-                .custom-audio-player audio::-webkit-media-controls-time-remaining-display {
-                    color: var(--text-color);
-                }
-
-                .custom-audio-player audio::-webkit-media-controls-play-button {
-                    background-color: var(--highlight-color);
-                    border-radius: 50%;
-                    height: 30px;
-                    width: 30px;
-                }
-
-                .custom-audio-player audio::-webkit-media-controls-timeline {
-                    background-color: var(--bg-color);
-                    height: 6px;
-                    border-radius: 3px;
-                }
-
-                /* Container styles for voice assignment display */
-                .voice-assignment {
-                    background-color: rgba(49, 57, 82, 0.8);
-                    padding: 1rem;
-                    border-radius: var(--border-radius);
-                    margin-top: 1rem;
-                    color: var(--text-color);
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    flex-wrap: wrap;
-                    gap: 1rem;
-                }
-
-                .voice-assignment span {
-                    font-weight: 600;
-                }
-
-                .voice-details {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                }
-
-                .character-name {
-                    color: var(--highlight-color);
-                    font-weight: bold;
-                }
-
-                .voice-props {
-                    color: #4a5568;
-                }
-            </style>
-        """
-
-    voice_assignments_html = audio_player_css
-    for character, voice_properties in result_voice_chain_out.items():
+    for character, voice_properties in sorted(character2props.items(), key=lambda x: x[0].lower()):
         color = get_character_color(character)
         audio_url = voice_properties.get('sample_audio_url', '')
 
-        voice_assignments_html += f'''
+        html += f'''
                 <div class="voice-assignment">
                     <div class="voice-details">
                         <span class="character-name" style="color: {color};">{character}</span>
@@ -327,5 +253,81 @@ def generate_voice_mapping_inner_html(select_voice_chain_out):
                 </div>
             '''
 
-    return voice_assignments_html
+    return html
 
+
+AUDIO_PLAYER_CSS = """\
+<style>
+    .custom-audio-player {
+        display: inline-block;
+        width: 250px;
+        --bg-color: #ff79c6;
+        --highlight-color: #4299e100;
+        --text-color: #e0e0e0;
+        --border-radius: 0px;
+    }
+
+    .custom-audio-player audio {
+        width: 100%;
+        height: 36px;
+        border-radius: var(--border-radius);
+        background-color: #3f2a2a00;
+        outline: none;
+    }
+
+    .custom-audio-player audio::-webkit-media-controls-panel {
+        background-color: var(--bg-color);
+    }
+
+    .custom-audio-player audio::-webkit-media-controls-current-time-display,
+    .custom-audio-player audio::-webkit-media-controls-time-remaining-display {
+        color: var(--text-color);
+    }
+
+    .custom-audio-player audio::-webkit-media-controls-play-button {
+        background-color: var(--highlight-color);
+        border-radius: 50%;
+        height: 30px;
+        width: 30px;
+    }
+
+    .custom-audio-player audio::-webkit-media-controls-timeline {
+        background-color: var(--bg-color);
+        height: 6px;
+        border-radius: 3px;
+    }
+
+    /* Container styles for voice assignment display */
+    .voice-assignment {
+        background-color: rgba(49, 57, 82, 0.8);
+        padding: 1rem;
+        border-radius: var(--border-radius);
+        margin-top: 1rem;
+        color: var(--text-color);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .voice-assignment span {
+        font-weight: 600;
+    }
+
+    .voice-details {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .character-name {
+        color: var(--highlight-color);
+        font-weight: bold;
+    }
+
+    .voice-props {
+        color: #4a5568;
+    }
+</style>
+"""

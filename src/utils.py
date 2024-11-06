@@ -14,7 +14,7 @@ from langchain_openai import ChatOpenAI
 from pydub import AudioSegment
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
-from src.config import logger
+from src.config import logger, VOICES_CSV_FP
 
 
 class GPTModels(StrEnum):
@@ -139,11 +139,10 @@ def overlay_multiple_audio(
     main_audio.export(out_fp, format='wav')
 
 
-def get_audio_from_voice_id(
-    voice_id: str, input_csv_path: str = "data/11labs_available_tts_voices.reviewed.csv"
-) -> str:
-    voices_df = pd.read_csv(input_csv_path)
-    return voices_df[voices_df["voice_id"] == voice_id]["preview_url"].values[0]
+def get_audio_from_voice_id(voice_id: str) -> str:
+    voices_df = pd.read_csv(VOICES_CSV_FP)
+    data = voices_df[voices_df["voice_id"] == voice_id]["preview_url"].values[0]
+    return data
 
 
 def get_character_color(character: str) -> str:
