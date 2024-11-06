@@ -115,11 +115,6 @@ with gr.Blocks(js=DESCRIPTION_JS, theme=GRADIO_THEME) as ui:
         ],
     )
 
-    audio_output = gr.Audio(
-        label='Generated audio. Please wait for the waveform to appear, before hitting "Play"',
-        type="filepath",
-    )
-
     error_output = gr.Textbox(label="Error Message", interactive=False, visible=False)
 
     effects_generation_checkbox = gr.Checkbox(
@@ -142,6 +137,12 @@ with gr.Blocks(js=DESCRIPTION_JS, theme=GRADIO_THEME) as ui:
 
     voice_result = gr.Textbox(visible=False, interactive=False, label="Processed Result")
     status_display = gr.HTML(value=STATUS_DISPLAY_HTML, label="Generation Status")
+    audio_output = gr.Audio(
+        label='Generated audio. Please wait for the waveform to appear, before hitting "Play"',
+        type="filepath",
+    )
+
+    # callbacks
 
     add_voice_btn.click(fn=None, inputs=None, outputs=voice_result, js=VOICE_UPLOAD_JS)
     submit_button.click(

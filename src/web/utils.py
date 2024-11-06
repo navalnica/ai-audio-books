@@ -40,6 +40,9 @@ def create_status_html(status: str, steps: list[tuple[str, bool]], error_text: s
         ]
     )
 
+    # status_description = '<p class="status-description" style="margin: 0.5rem 0 0 0; color: #c0c0c0; font-size: 1rem; font-weight: 400;">Processing steps below.</p>'
+    status_description = ''
+
     if error_text:
         error_html = f'<div class="error-message" style="color: #e53e3e; font-size: 1.2em;">{error_text}</div></div>'
     else:
@@ -47,12 +50,10 @@ def create_status_html(status: str, steps: list[tuple[str, bool]], error_text: s
 
     return f'''
     <div class="status-container" style="font-family: system-ui; max-width: 1472px; margin: 0 auto; background-color: #31395294; padding: 1rem; border-radius: 8px; color: #f0f0f0;">
-        <style>
-            {spinner_css}
-        </style>
+        <style>{spinner_css}</style>
         <div class="status-header" style="background: #31395294; padding: 1rem; border-radius: 8px; font-weight: bold;">
             <h3 class="status-title" style="margin: 0; color: rgb(224, 224, 224); font-size: 1.5rem; font-weight: 700;">Status: {status}</h3>
-            <p class="status-description" style="margin: 0.5rem 0 0 0; color: #c0c0c0; font-size: 1rem; font-weight: 400;">Processing steps below.</p>
+            {status_description}
             {error_html}
         </div>
         <div class="steps" style="margin-top: 1rem;">
@@ -307,14 +308,19 @@ AUDIO_PLAYER_CSS = """\
     .voice-assignment {
         background-color: rgba(49, 57, 82, 0.8);
         padding: 1rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
+        padding-top: 0.2rem;
+        padding-bottom: 0.2rem;
         border-radius: var(--border-radius);
-        margin-top: 1rem;
+        margin-top: 0.5rem;
         color: var(--text-color);
         display: flex;
         align-items: center;
         justify-content: space-between;
         flex-wrap: wrap;
         gap: 1rem;
+        border-radius: 7px;
     }
 
     .voice-assignment span {
