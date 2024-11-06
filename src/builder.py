@@ -129,9 +129,9 @@ class AudiobookBuilder:
         context_table = []
         for i in range(len(phrases)):
             left_text, right_text = '', ''
-            for phrase in phrases[max(0, i-1)::-1]:
-                if len(left_text) + len(phrase.text) < context_length:
-                    left_text = phrase.text + left_text
+            for j in range(i-1, -1, -1):
+                if len(left_text) + len(phrases[j].text) < context_length:
+                    left_text = phrases[j].text + left_text
                 else:
                     break
             for phrase in phrases[i+1:]:
