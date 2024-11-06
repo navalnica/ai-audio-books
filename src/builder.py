@@ -25,12 +25,7 @@ from src.sound_effects_design import (
     create_sound_effects_design_chain,
 )
 from src.text_split_chain import SplitTextOutput, create_split_text_chain
-from src.utils import (
-    GPTModels,
-    get_audio_from_voice_id,
-    get_character_color,
-    prettify_unknown_character_label,
-)
+from src.utils import GPTModels, prettify_unknown_character_label
 from src.web.constructor import HTMLGenerator
 from src.web.utils import (
     create_status_html,

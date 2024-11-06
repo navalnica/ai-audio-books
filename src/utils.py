@@ -150,14 +150,15 @@ def get_character_color(character: str) -> str:
     if not character or character == "Unassigned":
         return "#808080"
     colors = [
-        "#FF6B6B",
-        "#4ECDC4",
-        "#45B7D1",
-        "#96CEB4",
-        "#FFEEAD",
-        "#D4A5A5",
-        "#9B59B6",
-        "#3498DB",
+        "#FF6B6B",  # pale red
+        "#ed1262",  # magenta-red
+        "#ed2bac",  # magenta
+        "#892ed5",  # purple
+        "#4562f7",  # blue
+        "#11ab99",  # cyan
+        "#58f23a",  # green
+        # "#96CEB4",  # light green
+        # "#D4A5A5",  # light red
     ]
     hash_val = sum(ord(c) for c in character)
     return colors[hash_val % len(colors)]

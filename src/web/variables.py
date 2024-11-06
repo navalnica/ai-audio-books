@@ -481,10 +481,14 @@ EFFECT_CSS = """\
     }
 
     .effect-text {
-        padding: 2px 4px;
-        border-radius: 0px;
-        border-bottom: 3px solid rgba(187, 185, 81, 0.97);
+        border-radius: 13px;
+        border: 2px solid rgba(251, 224, 5, 0.91);
         cursor: help;
+        color: rgba(53, 53, 53, 0.97) !important;
+        background-color: #ffffffd9;
+        font-size: 0.9em;
+        padding-left: 0.3em !important;
+        padding-right: 0.3em !important;
     }
 
     .effect-tooltip {

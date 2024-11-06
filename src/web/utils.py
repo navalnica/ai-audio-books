@@ -100,7 +100,8 @@ def _generate_legend_for_text_split_html(
     if add_effect_legend:
         legend_html += (
             '<div style="font-size: 1.1em; margin-bottom: 0.25rem;">'
-            '<span class="effect-text">Sound Effect</span>'
+            '<span class="effect-text">🎵 #1</span>'
+            ' - sound effect start position (hover to see the prompt)'
             '</div>'
         )
     legend_html += "</div>"
@@ -120,11 +121,9 @@ def _generate_text_split_html(
         character = phrase.character or 'Unassigned'
         text = phrase.text
         color = get_character_color(character)
-        rgba_color = f"rgba({hex_to_rgb(color)}, 0.3)"
+        rgba_color = f"rgba({hex_to_rgb(color)}, 0.5)"
 
-        prefix = (
-            f"<span style='background-color: {rgba_color}; padding: 0.2em; border-radius: 0.2em;'>"
-        )
+        prefix = f"<span style='background-color: {rgba_color}; border-radius: 0.2em;'>"
         suffix = '</span>'
 
         # Append the HTML for this phrase
@@ -170,27 +169,28 @@ def generate_text_split_inner_html_with_effects(
 
     prev_end = 0
     content_html_parts = []
-    for sed in sound_effects_descriptions:
+    for ix, sed in enumerate(sound_effects_descriptions, start=1):
         # NOTE: 'sed' contains approximate indices from the original text.
         # that's why we use safe conversion before accessing char mapping
         ix_start = get_collection_safe_index(
             ix=sed.ix_start_orig_text, collection=char_ix_orig_2_html
         )
-        ix_end = get_collection_safe_index(ix=sed.ix_end_orig_text, collection=char_ix_orig_2_html)
+        # ix_end = get_collection_safe_index(ix=sed.ix_end_orig_text, collection=char_ix_orig_2_html)
 
         html_start_ix = char_ix_orig_2_html[ix_start]
         # html_end_ix = char_ix_orig_2_html[ix_end]  # NOTE: this is incorrect
         # BUG: here we take exact same number of characters as in text between sound effect tags.
         # This introduces the bug: HTML text could be included in 'text_under_effect',
         # due to inaccuracies in 'sed' indices.
-        html_end_ix = html_start_ix + ix_end - ix_start  # NOTE: this is correct
+        # html_end_ix = html_start_ix + ix_end - ix_start  # NOTE: this is correct
         # NOTE: reason is that html may exist between original text characters
 
         prefix = text_split_html[prev_end:html_start_ix]
         if prefix:
             content_html_parts.append(prefix)
 
-        text_under_effect = text_split_html[html_start_ix:html_end_ix]
+        # text_under_effect = text_split_html[html_start_ix:html_end_ix]
+        text_under_effect = f'🎵 #{ix}'
         if text_under_effect:
             effect_prefix, effect_postfix = create_effect_span_prefix_postfix(
                 effect_description=sed.prompt
@@ -198,7 +198,8 @@ def generate_text_split_inner_html_with_effects(
             text_under_effect_wrapped = f'{effect_prefix}{text_under_effect}{effect_postfix}'
             content_html_parts.append(text_under_effect_wrapped)
 
-        prev_end = html_end_ix
+        # prev_end = html_end_ix
+        prev_end = html_start_ix
 
     last = text_split_html[prev_end:]
     if last:
