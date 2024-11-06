@@ -131,7 +131,7 @@ class AudiobookBuilder:
             left_text, right_text = '', ''
             for phrase in phrases[max(0, i-1)::-1]:
                 if len(left_text) + len(phrase.text) < context_length:
-                    left_text += phrase.text
+                    left_text = phrase.text + left_text
                 else:
                     break
             for phrase in phrases[i+1:]:
