@@ -170,6 +170,8 @@ def generate_voice_assignments_html(select_voice_chain_out):
         )
 
         result_voice_chain_out[replace_labels(key)] = character_props
+
+    result_voice_chain_out = dict(sorted(result_voice_chain_out.items(), key=lambda x: x[0].lower()))
     voice_assignments_html = ""
     for character, voice_properties in result_voice_chain_out.items():
         color = get_character_color(character)
