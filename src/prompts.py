@@ -127,6 +127,7 @@ For example, cracking of stairs, wind blowing, car honks, sound of a falling boo
 - NEVER generate ambient sounds, for example people's voices, sound of the crowd
 - NEVER generate sounds for gestures, for example for a hand raised in the air.
 - NEVER generate effects for sounds people may produce: laughing, giggling, sobbing, crying, talking, singing, screaming.
+- NEVER generate silence, since it's a too abstract effect
 - The text-to-sound-effects model is able to generate only short audio files, up to 5 seconds long
 - Aim to position sound effects at the most intuitive points for a natural, immersive experience.
 For example, instead of placing the sound effect only on a single word or object (like "stairs"),
@@ -136,8 +137,9 @@ tag a broader phrase making the effect feel part of the action or dialogue.
 Example of a good prompt:
 "Old wooden staircase creaking under slow footsteps, each step producing uneven crackles, groans, and occasional sharp snaps, emphasizing age and fragility in a quiet, echoing space" - it's specific and rich in details
 
-Example of a bad prompt:
-"brief silence, creating a moment of tension" - it's too short, not specific and is an ambient sound.
+Examples of bad prompts:
+1. "brief silence, creating a moment of tension" - it's too short, not specific and is an ambient sound.
+2. "brief, tense silence, filled with unspoken words and a slight undercurrent of tension" - very abstract, and breaks the rule of not generating silence
 
 Response with the original text with selected phrases wrapped inside emotion XML tags.
 Do not modify original text!
