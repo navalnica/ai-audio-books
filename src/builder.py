@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 from pathlib import Path
 from uuid import uuid4
@@ -8,7 +9,7 @@ from pydantic import BaseModel
 from pydub import AudioSegment
 
 from src import tts, utils
-from src.config import ELEVENLABS_MAX_PARALLEL, OPENAI_MAX_PARALLEL, logger
+from src.config import ELEVENLABS_MAX_PARALLEL, OPENAI_MAX_PARALLEL, logger, CONTEXT_CHAR_LEN_FOR_TTS
 from src.lc_callbacks import LCMessageLoggerAsync
 from src.preprocess_tts_text_chain import TTSTextProcessor
 from src.schemas import SoundEffectsParams, TTSParams, TTSTimestampsAlignment, TTSTimestampsResponse
@@ -19,7 +20,7 @@ from src.sound_effects_design import (
     create_sound_effects_design_chain,
 )
 from src.text_split_chain import SplitTextOutput, create_split_text_chain
-from src.utils import GPTModels, compute_contexts
+from src.utils import GPTModels
 
 
 class TTSPhrasesGenerationOutput(BaseModel):
@@ -108,16 +109,39 @@ class AudiobookBuilder:
         return tts_params_list
 
     @staticmethod
+    def _compute_contexts(phrases, context_length=CONTEXT_CHAR_LEN_FOR_TTS):
+        """
+        Return phrases from left and right sides which don't exceed `context_length`.
+        Approx. number of words/tokens based on `context_length` can be calculated by dividing it to 5.
+        """
+        # TODO: split first context phrase if it exceeds `context_length`, currently it's not added.
+        # TODO: optimize algorithm to linear time using sliding window on top of cumulative length sums.
+        context_table = []
+        for i in range(len(phrases)):
+            left_count, left_length, right_count, right_length = 0, 0, 0, 0
+            for j in range(i - 1, -1, -1):
+                if left_length + len(phrases[i].text) < context_length:
+                    left_length += len(phrases[i].text)
+                else:
+                    break
+            for k in range(i + 1, len(phrases)):
+                if right_length + len(phrases[i].text) < context_length:
+                    right_length += len(phrases[i].text)
+                else:
+                    break
+            context_table.append((left_length, right_length))
+        return context_table
+
     def _add_previous_and_next_context_to_tts_params(
+        self,
         text_split: SplitTextOutput,
         tts_params_list: list[TTSParams],
     ) -> list[TTSParams]:
-        number_of_context_phrases = compute_contexts(text_split.phrases)
-        for idx, items in enumerate(zip(number_of_context_phrases, tts_params_list)):
-            num_of_phrases, params = items
-            left_num, right_num = num_of_phrases
-            params.previous_text = ' '.join(number_of_context_phrases[idx-left_num, idx])
-            params.next_text = ' '.join(number_of_context_phrases[idx+1, idx+right_num+1])
+        number_of_context_phrases = self._compute_contexts(text_split.phrases)
+        for num_of_phrases, params in zip(number_of_context_phrases, tts_params_list):
+            left_context, right_context = num_of_phrases
+            params.previous_text = left_context
+            params.next_text = right_context
         return tts_params_list
 
     @staticmethod

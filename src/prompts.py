@@ -203,6 +203,7 @@ It is not just added silence between words,
 but the AI has an actual understanding of this syntax and will add a natural pause. 
 Please, be generous on pauses. TTS model tends to dub in with fast speed. 
 That should be avoid while dubbing in audio book. 
+But don't add pauses in the very end of the given text.
 
 After modifying the text, adjust the "stability" parameters 
 according to the level of emotional intensity in the modified text.

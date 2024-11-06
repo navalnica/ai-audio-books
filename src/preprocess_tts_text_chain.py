@@ -7,7 +7,7 @@ from src.config import OPENAI_API_KEY, logger, DEFAULT_TTS_STABILITY, DEFAULT_TT
 from src.schemas import TTSParams
 from src.utils import GPTModels, auto_retry
 
-from .prompts import TEXT_MODIFICATION
+from src.prompts import TEXT_MODIFICATION
 
 
 class TTSTextProcessor:
@@ -20,8 +20,7 @@ class TTSTextProcessor:
     @staticmethod
     def _wrap_results(data: dict, default_text: str) -> TTSParams:
         modified_text = data.get('modified_text', default_text)
-        voice_params = data.get('params', {})
-        stability = voice_params.get('stability', DEFAULT_TTS_STABILITY)
+        stability = data.get('stability', DEFAULT_TTS_STABILITY)
         similarity_boost = DEFAULT_TTS_SIMILARITY_BOOST
         style = DEFAULT_TTS_STYLE
 
