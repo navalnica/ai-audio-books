@@ -8,7 +8,12 @@ from pydantic import BaseModel
 from pydub import AudioSegment
 
 from src import tts, utils
-from src.config import ELEVENLABS_MAX_PARALLEL, OPENAI_MAX_PARALLEL, logger, CONTEXT_CHAR_LEN_FOR_TTS
+from src.config import (
+    ELEVENLABS_MAX_PARALLEL,
+    OPENAI_MAX_PARALLEL,
+    logger,
+    CONTEXT_CHAR_LEN_FOR_TTS,
+)
 from src.lc_callbacks import LCMessageLoggerAsync
 from src.preprocess_tts_emotions_chain import TTSParamProcessor
 from src.schemas import SoundEffectsParams, TTSParams, TTSTimestampsAlignment, TTSTimestampsResponse
@@ -39,13 +44,15 @@ class AudiobookBuilder:
         self.name = type(self).__name__
 
     @staticmethod
-    async def _modify_text(text: str) -> str:
+    async def _prepare_text_for_tts(text: str) -> str:
         chain = modify_text_chain(llm_model=GPTModels.GPT_4o)
         with get_openai_callback() as cb:
             result = await chain.ainvoke(
                 {"text": text}, config={"callbacks": [LCMessageLoggerAsync()]}
             )
-        logger.info(f'End of modifying text with caps and symbols(?, !, ...). Openai callback stats: {cb}')
+        logger.info(
+            f'End of modifying text with caps and symbols(?, !, ...). Openai callback stats: {cb}'
+        )
         return result.text_modified
 
     @staticmethod
@@ -129,12 +136,12 @@ class AudiobookBuilder:
         context_table = []
         for i in range(len(phrases)):
             left_text, right_text = '', ''
-            for j in range(i-1, -1, -1):
+            for j in range(i - 1, -1, -1):
                 if len(left_text) + len(phrases[j].text) < context_length:
                     left_text = phrases[j].text + left_text
                 else:
                     break
-            for phrase in phrases[i+1:]:
+            for phrase in phrases[i + 1 :]:
                 if len(right_text) + len(phrase.text) < context_length:
                     right_text += phrase.text
                 else:
@@ -352,14 +359,15 @@ class AudiobookBuilder:
             # TODO: currenly, we are constantly writing and reading audio segments from files.
             # I think it will be more efficient to keep all audio in memory.
 
-            modified_text = await self._modify_text(text=text)
-
-            text_split = await self._split_text(text=modified_text)
-            self._save_text_split_debug_data(text_split=text_split, out_dp=debug_dp)
+            text_for_tts = await self._prepare_text_for_tts(text=text)
 
             # TODO: call sound effects chain in parallel with text split chain
+
+            text_split = await self._split_text(text=text_for_tts)
+            self._save_text_split_debug_data(text_split=text_split, out_dp=debug_dp)
+
             if generate_effects:
-                se_design_output = await self._design_sound_effects(text=modified_text)
+                se_design_output = await self._design_sound_effects(text=text_for_tts)
 
             # TODO: run these 2 chains in parallel
             select_voice_chain_out = await self._map_characters_to_voices(text_split=text_split)
