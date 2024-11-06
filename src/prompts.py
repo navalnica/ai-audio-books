@@ -228,6 +228,7 @@ Your output should be in the following JSON format:
 
 The "stability" parameter should range from 0.3 to 0.8,
 with lower values indicating a more expressive, less stable voice.
+Don't include reasoning, return JSON with one key only.
 
 Example of text that could be passed:
 
