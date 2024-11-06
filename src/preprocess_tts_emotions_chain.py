@@ -64,7 +64,7 @@ class TTSParamProcessor:
             output_dict = json.loads(chatgpt_output)
             logger.info(f"TTS text processing succeeded: {output_dict}")
         except json.JSONDecodeError as e:
-            logger.exception("Error in parsing the modified text")
+            logger.exception("Error in selecting stability for the modified text")
             raise ValueError(f"error, output_text: {chatgpt_output}") from e
 
         output_wrapped = self._wrap_results(output_dict, default_text=text_prepared)
