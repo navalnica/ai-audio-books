@@ -2,29 +2,22 @@ import asyncio
 import os
 from asyncio import TaskGroup
 from pathlib import Path
-from typing import Callable, Any, List
+from typing import Any, Callable, List
 from uuid import uuid4
 
 from langchain_community.callbacks import get_openai_callback
 from pydantic import BaseModel
 from pydub import AudioSegment
 
-from src.web.constructor import HTMLGenerator
-from src.web.utils import (
-    create_status_html,
-    generate_text_split_inner_html_no_effect,
-    generate_text_split_inner_html_with_effects,
-    generate_voice_mapping_inner_html,
-)
 from src import tts, utils
 from src.config import ELEVENLABS_MAX_PARALLEL, OPENAI_MAX_PARALLEL, logger
 from src.lc_callbacks import LCMessageLoggerAsync
 from src.preprocess_tts_text_chain import TTSTextProcessorWithSSML
 from src.schemas import SoundEffectsParams, TTSParams, TTSTimestampsAlignment, TTSTimestampsResponse
 from src.select_voice_chain import (
+    CharacterPropertiesNullable,
     SelectVoiceChainOutput,
     VoiceSelector,
-    CharacterPropertiesNullable,
 )
 from src.sound_effects_design import (
     SoundEffectDescription,
@@ -34,9 +27,16 @@ from src.sound_effects_design import (
 from src.text_split_chain import SplitTextOutput, create_split_text_chain
 from src.utils import (
     GPTModels,
-    prettify_unknown_character_label,
     get_audio_from_voice_id,
     get_character_color,
+    prettify_unknown_character_label,
+)
+from src.web.constructor import HTMLGenerator
+from src.web.utils import (
+    create_status_html,
+    generate_text_split_inner_html_no_effect,
+    generate_text_split_inner_html_with_effects,
+    generate_voice_mapping_inner_html,
 )
 
 

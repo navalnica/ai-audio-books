@@ -1,13 +1,13 @@
+from src.sound_effects_design import SoundEffectDescription
+from src.text_split_chain import CharacterPhrase
 from src.utils import (
-    hex_to_rgb,
-    get_character_color,
     get_audio_from_voice_id,
+    get_character_color,
+    get_collection_safe_index,
+    hex_to_rgb,
     prettify_unknown_character_label,
 )
 from src.web.variables import EFFECT_CSS
-from src.text_split_chain import CharacterPhrase
-from src.sound_effects_design import SoundEffectDescription
-from src.utils import get_collection_safe_index
 
 
 def create_status_html(status: str, steps: list[tuple[str, bool]]) -> str:

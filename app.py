@@ -10,8 +10,8 @@ load_dotenv()
 from data import samples_to_split as samples
 from src.builder import AudiobookBuilder
 from src.config import FILE_SIZE_MAX, MAX_TEXT_LEN, logger
-from src.web.variables import VOICE_UPLOAD_JS, STATUS_DISPLAY_HTML, GRADIO_THEME, DESCRIPTION_JS
 from src.web.utils import create_status_html
+from src.web.variables import DESCRIPTION_JS, GRADIO_THEME, STATUS_DISPLAY_HTML, VOICE_UPLOAD_JS
 
 
 def get_auth_params():
@@ -66,7 +66,9 @@ async def audiobook_builder(
             f"exceeded current limit of {MAX_TEXT_LEN} characters. "
             "Please input a shorter text."
         )
-        yield None, "", builder.html_generator.generate_error("Text too long. Please input a shorter text.")
+        yield None, "", builder.html_generator.generate_error(
+            "Text too long. Please input a shorter text."
+        )
 
     async for stage in builder.run(text, generate_effects, use_user_voice, voice_id):
         yield stage
