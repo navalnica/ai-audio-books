@@ -216,17 +216,6 @@ STATUS_DISPLAY_HTML = '''
                 <h2 class="status-title">Status: Waiting to Start</h2>
                 <p class="status-description">Enter text or upload a file to begin.</p>
             </div>
-            <div class="steps">
-                <div class="step-item">
-                    <span class="step-icon">📚</span>
-                    <span class="step-text">Split text into characters</span>
-                </div>
-                <div class="step-item">
-                    <span class="step-icon">🎭</span>
-                    <span class="step-text">Assign each character a voice</span>
-                </div>
-                <!-- Add more steps as needed -->
-            </div>
         </div>
         '''
 GRADIO_THEME = "freddyaboulton/dracula_revamped"
