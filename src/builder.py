@@ -10,7 +10,7 @@ from pydub import AudioSegment
 from src import tts, utils
 from src.config import ELEVENLABS_MAX_PARALLEL, OPENAI_MAX_PARALLEL, logger
 from src.lc_callbacks import LCMessageLoggerAsync
-from src.preprocess_tts_text_chain import TTSTextProcessorWithSSML
+from src.preprocess_tts_text_chain import TTSTextProcessor
 from src.schemas import SoundEffectsParams, TTSParams, TTSTimestampsAlignment, TTSTimestampsResponse
 from src.select_voice_chain import SelectVoiceChainOutput, VoiceSelector
 from src.sound_effects_design import (
@@ -19,7 +19,7 @@ from src.sound_effects_design import (
     create_sound_effects_design_chain,
 )
 from src.text_split_chain import SplitTextOutput, create_split_text_chain
-from src.utils import GPTModels
+from src.utils import GPTModels, compute_contexts
 
 
 class TTSPhrasesGenerationOutput(BaseModel):
@@ -31,7 +31,7 @@ class AudiobookBuilder:
 
     def __init__(self, rm_artifacts: bool = False):
         self.voice_selector = VoiceSelector()
-        self.text_tts_processor = TTSTextProcessorWithSSML()
+        self.text_tts_processor = TTSTextProcessor()
         self.rm_artifacts = rm_artifacts
         self.min_sound_effect_duration_sec = 1
         self.sound_effects_prompt_influence = 0.75  # seems to work nicely
@@ -105,6 +105,19 @@ class AudiobookBuilder:
     ) -> list[TTSParams]:
         for character_phrase, params in zip(text_split.phrases, tts_params_list):
             params.voice_id = character2voice[character_phrase.character]
+        return tts_params_list
+
+    @staticmethod
+    def _add_previous_and_next_context_to_tts_params(
+        text_split: SplitTextOutput,
+        tts_params_list: list[TTSParams],
+    ) -> list[TTSParams]:
+        number_of_context_phrases = compute_contexts(text_split.phrases)
+        for idx, items in enumerate(zip(number_of_context_phrases, tts_params_list)):
+            num_of_phrases, params = items
+            left_num, right_num = num_of_phrases
+            params.previous_text = ' '.join(number_of_context_phrases[idx-left_num, idx])
+            params.next_text = ' '.join(number_of_context_phrases[idx+1, idx+right_num+1])
         return tts_params_list
 
     @staticmethod
@@ -320,6 +333,11 @@ class AudiobookBuilder:
                 text_split=text_split,
                 tts_params_list=tts_params_list,
                 character2voice=select_voice_chain_out.character2voice,
+            )
+
+            tts_params_list = self._add_previous_and_next_context_to_tts_params(
+                text_split=text_split,
+                tts_params_list=tts_params_list,
             )
 
             tts_dp = os.path.join(out_dp_root, 'tts')

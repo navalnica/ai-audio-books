@@ -3,14 +3,14 @@ import json
 import openai
 from elevenlabs import VoiceSettings
 
-from src.config import OPENAI_API_KEY, logger
+from src.config import OPENAI_API_KEY, logger, DEFAULT_TTS_STABILITY, DEFAULT_TTS_SIMILARITY_BOOST, DEFAULT_TTS_STYLE
 from src.schemas import TTSParams
 from src.utils import GPTModels, auto_retry
 
-from .prompts import TEXT_MODIFICATION_WITH_SSML
+from .prompts import TEXT_MODIFICATION
 
 
-class TTSTextProcessorWithSSML:
+class TTSTextProcessor:
 
     # TODO: refactor to langchain function (?)
 
@@ -21,9 +21,9 @@ class TTSTextProcessorWithSSML:
     def _wrap_results(data: dict, default_text: str) -> TTSParams:
         modified_text = data.get('modified_text', default_text)
         voice_params = data.get('params', {})
-        stability = voice_params.get('stability', 0.5)
-        similarity_boost = voice_params.get('similarity_boost', 0.5)
-        style = voice_params.get('style', 0.5)
+        stability = voice_params.get('stability', DEFAULT_TTS_STABILITY)
+        similarity_boost = DEFAULT_TTS_SIMILARITY_BOOST
+        style = DEFAULT_TTS_STYLE
 
         params = TTSParams(
             # NOTE: voice will be set later in the builder pipeline
@@ -46,7 +46,7 @@ class TTSTextProcessorWithSSML:
         completion = await self.client.chat.completions.create(
             model=GPTModels.GPT_4o,
             messages=[
-                {"role": "system", "content": TEXT_MODIFICATION_WITH_SSML},
+                {"role": "system", "content": TEXT_MODIFICATION},
                 {"role": "user", "content": text_prepared},
             ],
             response_format={"type": "json_object"},

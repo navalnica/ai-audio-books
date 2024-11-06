@@ -37,3 +37,9 @@ AI will do the rest:
 - (optionally) add sound effects to create immersive atmosphere
 - generate audiobook using Text-to-Speech model
 """
+
+DEFAULT_TTS_STABILITY = 0.4
+DEFAULT_TTS_SIMILARITY_BOOST = 0.5
+DEFAULT_TTS_STYLE = 0
+
+CONTEXT_CHAR_LEN_FOR_TTS = 1000

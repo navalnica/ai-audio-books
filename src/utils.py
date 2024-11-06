@@ -11,7 +11,7 @@ from langchain_openai import ChatOpenAI
 from pydub import AudioSegment
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
-from src.config import logger
+from src.config import logger, CONTEXT_CHAR_LEN_FOR_TTS
 
 
 class GPTModels(StrEnum):
@@ -105,6 +105,33 @@ def normalize_audio(audio_segment: AudioSegment, target_dBFS: float = -20.0) -> 
     delta = target_dBFS - audio_segment.dBFS
     res = audio_segment.apply_gain(delta)
     return res
+
+
+def compute_contexts(items, context_length=CONTEXT_CHAR_LEN_FOR_TTS):
+    """
+    Return number of phrases from left and right sides which don't exceed `context_length`.
+    Approx. number of words/tokens based on `context_length` can be calculated by dividing it to 5.
+    By default, number of phrases is 0.
+    """
+    # TODO: split first conext phrase if it exceeds `context_length`, currently it's not added.
+    # TODO: optimize algorithm to linear time using sliding window on top of cumulative length sums.
+    context_table = []
+    for i in range(len(items)):
+        left_count, left_length, right_count, right_length = 0, 0, 0, 0
+        for j in range(i-1, -1, -1):
+            if left_length + len(items[i]["modified_text"]) < context_length:
+                left_length += len(items[i]["modified_text"])
+                left_count += 1
+            else:
+                break
+        for k in range(i + 1, len(items)):
+            if right_length + len(items[i]["modified_text"]) < context_length:
+                right_length += len(items[i]["modified_text"])
+                right_count += 1
+            else:
+                break
+        context_table.append((left_count, right_count))
+    return context_table
 
 
 # def add_overlay_for_audio(

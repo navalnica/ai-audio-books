@@ -186,7 +186,7 @@ Your output should be in the following JSON format:
   "prompt_influence": 0.4
 }}"""
 
-# TODO: this prompt is not used
+
 TEXT_MODIFICATION = """
 You should help me to make an audiobook with realistic emotion-based voice using TTS.
 You are tasked with adjusting the emotional tone of a given text
@@ -196,40 +196,32 @@ duplicate special characters for example "!!!".
 Do not remove or add any different words.
 Only alter the presentation of the existing words.
 
-Also you can add pause in the output text if it needed 
+Also you should add pause in the output text if it needed using "..." or <break> tag. 
 The most consistent way is programmatically using the syntax <break time="1.5s" />. or any time in second if it fit to the text
 This will create an exact and natural pause in the speech.
 It is not just added silence between words,
-but the AI has an actual understanding of this syntax and will add a natural pause.
+but the AI has an actual understanding of this syntax and will add a natural pause. 
+Please, be generous on pauses. TTS model tends to dub in with fast speed. 
+That should be avoid while dubbing in audio book. 
 
-After modifying the text, adjust the "stability", "similarity_boost" and "style" parameters
+After modifying the text, adjust the "stability" parameters 
 according to the level of emotional intensity in the modified text.
-Higher emotional intensity should lower the "stability" and raise the "similarity_boost". 
- Your output should be in the following JSON format:
- {
+Higher emotional intensity should lower the "stability". 
+Your output should be in the following JSON format:
+{
   "modified_text": "Modified text with emotional adjustments.",
-  "params": {
-    "stability": 0.7,
-    "similarity_boost": 0.5,
-    "style": 0.3
-  }
+  "stability": 0.4,
 }
 
-The "stability" parameter should range from 0 to 1,
+The "stability" parameter should range from 0.2 to 0.7,
 with lower values indicating a more expressive, less stable voice.
-The "similarity_boost" parameter should also range from 0 to 1,
-with higher values indicating more emphasis on the voice similarity.
-The "style" parameter should also range from 0 to 1,
-where lower values indicate a neutral tone and higher values reflect more stylized or emotional delivery.
-Adjust both according to the emotional intensity of the text.
 
 Example of text that could be passed:
 
 Text: "I can't believe this is happening."
 """
 
-# TODO: try to make this prompt shorter!!!
-# TODO: try to rewrite the whole text at once, instead of rewriting each individual phrase
+# TODO: this prompt is not used
 TEXT_MODIFICATION_WITH_SSML = """
 You should help me to make an audiobook with overabundant emotion-based voice using TTS.
 You are tasked with transforming the text provided into a sophisticated SSML script 
