@@ -465,61 +465,59 @@ async function createVoiceUploadPopup() {{
 }}
 """
 
-EFFECT_CSS = """
+EFFECT_CSS = """\
 <style>
-            .text-effect-container {
-            font-size: 1.2em;
-            line-height: 1.6;
-        }
+    .text-effect-container {
+        line-height: 1.6;
+    }
 
-        .character-segment {
-            padding: 0.2em;
-            border-radius: 0.2em;
-        }
+    .character-segment {
+        border-radius: 0.2em;
+    }
 
-        .effect-container {
-            position: relative;
-            display: inline-block;
-        }
+    .effect-container {
+        position: relative;
+        display: inline-block;
+    }
 
-        .effect-text {
-            padding: 2px 4px;
-            border-radius: 0px;
-            border-bottom: 4px solid rgba(187, 185, 81, 0.97);
-            cursor: help;
-        }
+    .effect-text {
+        padding: 2px 4px;
+        border-radius: 0px;
+        border-bottom: 3px solid rgba(187, 185, 81, 0.97);
+        cursor: help;
+    }
 
-        .effect-tooltip {
-            visibility: hidden;
-            background-color: #333;
-            color: white;
-            text-align: center;
-            padding: 5px 10px;
-            border-radius: 6px;
-            position: absolute;
-            z-index: 1;
-            bottom: 125%;
-            left: 50%;
-            transform: translateX(-50%);
-            white-space: nowrap;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
+    .effect-tooltip {
+        visibility: hidden;
+        background-color: #333;
+        color: white;
+        text-align: center;
+        padding: 5px 10px;
+        border-radius: 6px;
+        position: absolute;
+        z-index: 1;
+        bottom: 125%;
+        left: 50%;
+        transform: translateX(-50%);
+        white-space: nowrap;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
 
-        .effect-tooltip::after {
-            content: "";
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            margin-left: -5px;
-            border-width: 5px;
-            border-style: solid;
-            border-color: #333 transparent transparent transparent;
-        }
+    .effect-tooltip::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: #333 transparent transparent transparent;
+    }
 
-        .effect-container:hover .effect-tooltip {
-            visibility: visible;
-            opacity: 1;
-        }
-    </style>
-    """
+    .effect-container:hover .effect-tooltip {
+        visibility: visible;
+        opacity: 1;
+    }
+</style>
+"""

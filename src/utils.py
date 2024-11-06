@@ -1,4 +1,5 @@
 import datetime
+from collections.abc import Sized
 import json
 import re
 import shutil
@@ -29,6 +30,12 @@ def get_chat_llm(llm_model: GPTModels, temperature=0.0):
         timeout=Timeout(60, connect=4),
     )
     return llm
+
+
+def get_collection_safe_index(ix: int, collection: Sized):
+    res = min(ix, len(collection) - 1)
+    res = max(0, res)
+    return res
 
 
 def write_txt(txt: str, fp: str):
@@ -107,39 +114,9 @@ def get_audio_duration(filepath: str) -> float:
 
 def normalize_audio(audio_segment: AudioSegment, target_dBFS: float = -20.0) -> AudioSegment:
     """Normalize an audio segment to the target dBFS level."""
-    # TODO: does it work as expected?
     delta = target_dBFS - audio_segment.dBFS
     res = audio_segment.apply_gain(delta)
     return res
-
-
-# def add_overlay_for_audio(
-#     audio1_fp: str,
-#     audio2_fp: str,
-#     out_fp: str | None = None,
-#     cycling_effect: bool = False,
-#     decrease_effect_volume: int = 0,
-# ):
-# NOTE: deprecated
-#     try:
-#         main_audio = AudioSegment.from_file(audio1_fp)
-#         effect_audio = AudioSegment.from_file(audio2_fp)
-#     except Exception as e:
-#         raise RuntimeError(f"Error loading audio files: {e}")
-
-#     if cycling_effect:
-#         while len(effect_audio) < len(main_audio):
-#             effect_audio += effect_audio
-
-#     effect_audio = effect_audio[: len(main_audio)]
-
-#     if decrease_effect_volume > 0:
-#         effect_audio = effect_audio - decrease_effect_volume
-#     combined_audio = main_audio.overlay(effect_audio)
-
-#     if out_fp:
-#         logger.info(f'saving overlayed audio to: "{out_fp}"')
-#         combined_audio.export(out_fp, format="wav")
 
 
 def overlay_multiple_audio(
@@ -186,7 +163,7 @@ def get_character_color(character: str) -> str:
     return colors[hash_val % len(colors)]
 
 
-def replace_labels(text):
+def prettify_unknown_character_label(text):
     return re.sub(r'\bc(\d+)\b', r'Character\1', text)
 
 
