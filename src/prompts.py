@@ -218,29 +218,26 @@ Your output should be in the following JSON format:
 
 
 EMOTION_STABILITY_MODIFICATION = """
-You should help me to make an audiobook with exaggerated emotion-based voice using TTS.
-You are tasked with adjusting the emotional tone of a given text by adjust the "stability" parameter
-according to the level of emotional intensity in the given text.
-Provided text was previously modified by caps and symbols ("!", "?", "...").
-If they presented a lot in the provided text, please, make text more emotional.
-Higher emotional intensity should lower the "stability". 
+You should help me to make an audiobook with exaggerated emotion-based voice using Text-to-Speech.
+Your single task it to select "stability" TTS parameter value,
+based on the emotional intensity level in the provided text chunk.
 
-Your output should be in the following JSON format:
-{
-  "stability": 0.5,
-}
+Provided text was previously modified by uppercasing some words and adding "!", "?", "..." symbols.
+The more there are uppercase words or "!", "?", "..." symbols, the higher emotional intensity level is.
+Higher emotional intensity must be associated with lower values of "stability" parameter,
+and lower emotional intensity must be associated with higher "stability" values.
+Low "stability" makes TTS to generate more expressive, less stable speech - better suited to convey emotional range.
 
-The "stability" parameter should range from 0.3 to 0.8,
-with lower values indicating a more expressive, less stable voice.
-Don't include reasoning, return JSON with one key only.
+Available range for "stability" values is [0.3; 0.8].
 
-Example of text that could be passed:
+You MUST answer with the following JSON,
+containing a SINGLE "stability" parameter with selected value:
+{"stability": float}
+DO NOT INCLUDE ANYTHING ELSE in your response.
 
-Text: "I CAN'T believe this is happening... Who would expect it??"
-Expected output:
-{
-  "stability": 0.4,
-}
+Example:
+Input: "I CAN'T believe this is happening... Who would expect it??"
+Expected output: {"stability": 0.4}
 """
 
 # TODO: this prompt is not used

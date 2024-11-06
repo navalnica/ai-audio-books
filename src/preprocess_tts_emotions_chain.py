@@ -6,7 +6,10 @@ from elevenlabs import VoiceSettings
 from src.config import (
     OPENAI_API_KEY,
     logger,
-    DEFAULT_TTS_STABILITY, DEFAULT_TTS_SIMILARITY_BOOST, DEFAULT_TTS_STYLE, DEFAULT_TTS_STABILITY_ACCEPTABLE_RANGE
+    DEFAULT_TTS_STABILITY,
+    DEFAULT_TTS_SIMILARITY_BOOST,
+    DEFAULT_TTS_STYLE,
+    DEFAULT_TTS_STABILITY_ACCEPTABLE_RANGE,
 )
 from src.schemas import TTSParams
 from src.utils import GPTModels, auto_retry
@@ -24,9 +27,9 @@ class TTSParamProcessor:
     @staticmethod
     def _wrap_results(data: dict, default_text: str) -> TTSParams:
         stability = data.get('stability', DEFAULT_TTS_STABILITY)
-        stability = stability \
-            if DEFAULT_TTS_STABILITY_ACCEPTABLE_RANGE[0] <= stability <= DEFAULT_TTS_STABILITY_ACCEPTABLE_RANGE[1] \
-            else DEFAULT_TTS_STABILITY
+        stability = max(stability, DEFAULT_TTS_STABILITY_ACCEPTABLE_RANGE[0])
+        stability = min(stability, DEFAULT_TTS_STABILITY_ACCEPTABLE_RANGE[1])
+
         similarity_boost = DEFAULT_TTS_SIMILARITY_BOOST
         style = DEFAULT_TTS_STYLE
 
@@ -64,8 +67,8 @@ class TTSParamProcessor:
             output_dict = json.loads(chatgpt_output)
             logger.info(f"TTS text processing succeeded: {output_dict}")
         except json.JSONDecodeError as e:
-            logger.exception("Error in selecting stability for the modified text")
-            raise ValueError(f"error, output_text: {chatgpt_output}") from e
+            logger.exception(f"Error in parsing LLM output: '{chatgpt_output}'")
+            raise e
 
         output_wrapped = self._wrap_results(output_dict, default_text=text_prepared)
         return output_wrapped
