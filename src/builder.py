@@ -451,15 +451,14 @@ class AudiobookBuilder:
 
             text_for_tts = await self._prepare_text_for_tts(text=text)
 
+            # TODO: call sound effects chain in parallel with text split chain
+            text_split = await self._split_text(text=text_for_tts)
+            self._save_text_split_debug_data(text_split=text_split, out_dp=debug_dp)
             # yield stage 1
             text_split_html = self._get_text_split_html(
                 text_split=text_split, sound_effects_descriptions=None
             )
             yield self._get_yield_data_stage_1(text_split_html=text_split_html)
-
-            # TODO: call sound effects chain in parallel with text split chain
-            text_split = await self._split_text(text=text_for_tts)
-            self._save_text_split_debug_data(text_split=text_split, out_dp=debug_dp)
 
             if generate_effects:
                 se_design_output = await self._design_sound_effects(text=text_for_tts)
