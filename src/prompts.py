@@ -23,6 +23,36 @@ Here is the book sample:
 {text}"""
 
 
+class ModifyTextPrompt:
+    SYSTEM = """\
+You are provided with the book sample.
+You should help me to make an audiobook with exaggerated emotion-based voice using Text-to-Speech models.
+Your task is to adjust the emotional tone of a given text by modifying the text in the following ways:
+- add special characters: "!" (adds emphasis), "?" (enhances question intonation), "..." (adds pause)
+- write words in uppercase - to add emphasis or convey emotion
+
+For example:
+Text: "I can't believe this is happening. Who would expect it?"
+Output text: "I CAN'T believe this is happening... Who would expect it??"
+
+Notes:
+- Do not remove or add any words!
+- You are allowed ONLY to add "!", "?", "..." symbols and re-write existing words in uppercase!
+- To add more emotions, you can duplicate exclamation or question marks, for example: "!!!" or "???"
+- DO NOT place "!" or "?" INSIDE existing sentences, since it breaks the sentence in parts
+- Be generous on pauses between sentences or between the obviously different parts of the same sentence.
+Reason is TTS model tends to dub with fast speed. 
+- But don't add too many pauses within one sentence! Add them only where needed.
+- Remember: sentences must sound naturally, in the way a profession voice actor would read it!
+- DO NOT add pauses in the very end of the given text!
+"""
+
+    USER = """\
+Here is the book sample:
+---
+{text}"""
+
+
 class CharacterVoicePropertiesPrompt:
     SYSTEM = """\
 You are a helpful assistant proficient in literature and psychology.
@@ -97,6 +127,7 @@ For example, cracking of stairs, wind blowing, car honks, sound of a falling boo
 - NEVER generate ambient sounds, for example people's voices, sound of the crowd
 - NEVER generate sounds for gestures, for example for a hand raised in the air.
 - NEVER generate effects for sounds people may produce: laughing, giggling, sobbing, crying, talking, singing, screaming.
+- NEVER generate silence, since it's a too abstract effect
 - The text-to-sound-effects model is able to generate only short audio files, up to 5 seconds long
 - Aim to position sound effects at the most intuitive points for a natural, immersive experience.
 For example, instead of placing the sound effect only on a single word or object (like "stairs"),
@@ -106,8 +137,9 @@ tag a broader phrase making the effect feel part of the action or dialogue.
 Example of a good prompt:
 "Old wooden staircase creaking under slow footsteps, each step producing uneven crackles, groans, and occasional sharp snaps, emphasizing age and fragility in a quiet, echoing space" - it's specific and rich in details
 
-Example of a bad prompt:
-"brief silence, creating a moment of tension" - it's too short, not specific and is an ambient sound.
+Examples of bad prompts:
+1. "brief silence, creating a moment of tension" - it's too short, not specific and is an ambient sound.
+2. "brief, tense silence, filled with unspoken words and a slight undercurrent of tension" - very abstract, and breaks the rule of not generating silence
 
 Response with the original text with selected phrases wrapped inside emotion XML tags.
 Do not modify original text!
@@ -186,50 +218,31 @@ Your output should be in the following JSON format:
   "prompt_influence": 0.4
 }}"""
 
-# TODO: this prompt is not used
-TEXT_MODIFICATION = """
-You should help me to make an audiobook with realistic emotion-based voice using TTS.
-You are tasked with adjusting the emotional tone of a given text
-by modifying the text with special characters such as "!", "...", "-", "~",
-and uppercase words to add emphasis or convey emotion. For adding more emotion u can
-duplicate special characters for example "!!!".
-Do not remove or add any different words.
-Only alter the presentation of the existing words.
 
-Also you can add pause in the output text if it needed 
-The most consistent way is programmatically using the syntax <break time="1.5s" />. or any time in second if it fit to the text
-This will create an exact and natural pause in the speech.
-It is not just added silence between words,
-but the AI has an actual understanding of this syntax and will add a natural pause.
+EMOTION_STABILITY_MODIFICATION = """
+You should help me to make an audiobook with exaggerated emotion-based voice using Text-to-Speech.
+Your single task it to select "stability" TTS parameter value,
+based on the emotional intensity level in the provided text chunk.
 
-After modifying the text, adjust the "stability", "similarity_boost" and "style" parameters
-according to the level of emotional intensity in the modified text.
-Higher emotional intensity should lower the "stability" and raise the "similarity_boost". 
- Your output should be in the following JSON format:
- {
-  "modified_text": "Modified text with emotional adjustments.",
-  "params": {
-    "stability": 0.7,
-    "similarity_boost": 0.5,
-    "style": 0.3
-  }
-}
+Provided text was previously modified by uppercasing some words and adding "!", "?", "..." symbols.
+The more there are uppercase words or "!", "?", "..." symbols, the higher emotional intensity level is.
+Higher emotional intensity must be associated with lower values of "stability" parameter,
+and lower emotional intensity must be associated with higher "stability" values.
+Low "stability" makes TTS to generate more expressive, less stable speech - better suited to convey emotional range.
 
-The "stability" parameter should range from 0 to 1,
-with lower values indicating a more expressive, less stable voice.
-The "similarity_boost" parameter should also range from 0 to 1,
-with higher values indicating more emphasis on the voice similarity.
-The "style" parameter should also range from 0 to 1,
-where lower values indicate a neutral tone and higher values reflect more stylized or emotional delivery.
-Adjust both according to the emotional intensity of the text.
+Available range for "stability" values is [0.3; 0.8].
 
-Example of text that could be passed:
+You MUST answer with the following JSON,
+containing a SINGLE "stability" parameter with selected value:
+{"stability": float}
+DO NOT INCLUDE ANYTHING ELSE in your response.
 
-Text: "I can't believe this is happening."
+Example:
+Input: "I CAN'T believe this is happening... Who would expect it??"
+Expected output: {"stability": 0.4}
 """
 
-# TODO: try to make this prompt shorter!!!
-# TODO: try to rewrite the whole text at once, instead of rewriting each individual phrase
+# TODO: this prompt is not used
 TEXT_MODIFICATION_WITH_SSML = """
 You should help me to make an audiobook with overabundant emotion-based voice using TTS.
 You are tasked with transforming the text provided into a sophisticated SSML script 
