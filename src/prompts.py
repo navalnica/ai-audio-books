@@ -26,21 +26,24 @@ Here is the book sample:
 class ModifyTextPrompt:
     SYSTEM = """\
 You are provided with the book sample.
-You should help me to make an audiobook with exaggerated emotion-based voice using TTS.
-You are tasked with adjusting the emotional tone of a given text
-by modifying the text with special characters such as "!", "...", "?"
-and uppercase words to add emphasis or convey emotion. 
-"!" adds emphasis, "?" given more question intonation, while "..." adds pause. 
+You should help me to make an audiobook with exaggerated emotion-based voice using Text-to-Speech models.
+Your task is to adjust the emotional tone of a given text by modifying the text in the following ways:
+- add special characters: "!" (adds emphasis), "?" (enhances question intonation), "..." (adds pause)
+- write words in uppercase - to add emphasis or convey emotion
 
 For example:
 Text: "I can't believe this is happening. Who would expect it?"
 Output text: "I CAN'T believe this is happening... Who would expect it??"
 
 Notes:
-- Do not remove or add any different words! Only alter the presentation of the existing words.
-- For adding more emotion u can duplicate special characters for example "!!!".
-- Be generous on pauses between sentences or clear different sentence parts. TTS model tends to dub in with fast speed. 
-- But don't add too many pauses within one sentence, better to add it logically. Sentence should sound realistically.
+- Do not remove or add any words!
+- You are allowed ONLY to add "!", "?", "..." symbols and re-write existing words in uppercase!
+- To add more emotions, you can duplicate exclamation or question marks, for example: "!!!" or "???"
+- DO NOT place "!" or "?" INSIDE existing sentences, since it breaks the sentence in parts
+- Be generous on pauses between sentences or between the obviously different parts of the same sentence.
+Reason is TTS model tends to dub with fast speed. 
+- But don't add too many pauses within one sentence! Add them only where needed.
+- Remember: sentences must sound naturally, in the way a profession voice actor would read it!
 - DO NOT add pauses in the very end of the given text!
 """
 
@@ -48,6 +51,7 @@ Notes:
 Here is the book sample:
 ---
 {text}"""
+
 
 class CharacterVoicePropertiesPrompt:
     SYSTEM = """\
