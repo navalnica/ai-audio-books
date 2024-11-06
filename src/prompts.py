@@ -193,20 +193,19 @@ You are tasked with adjusting the emotional tone of a given text
 by modifying the text with special characters such as "!", "...", "?"
 and uppercase words to add emphasis or convey emotion. 
 "!" adds emphasis, "?" given more question intonation, while "..." adds pause.
-For adding more emotion u can
-duplicate special characters for example "!!!".
+For adding more emotion u can duplicate special characters for example "!!!".
 Do not remove or add any different words.
 Only alter the presentation of the existing words.
 
 Please, be generous on pauses. TTS model tends to dub in with fast speed. 
-But don't add too many pauses within one sentence, better to add logically between sentences or
-different sentence parts. Sentence should sound realistic.
-This will create an exact and natural pause in the speech.
+But don't add too many pauses within one sentence, better to add it logically between sentences or
+clear different sentence parts. Sentence should sound realistically.
+This will create an exact and natural pause in the speech, because TTS tends to dub in too fast.
 It is not just added silence between words,
 but the AI has an actual understanding of this syntax and will add a natural pause. 
-But don't add pauses in the very end of the given text.
+Don't add pauses in the very end of the given text. 
 
-After modifying the text, adjust the "stability" parameters 
+After modifying the text, adjust the "stability" parameter
 according to the level of emotional intensity in the modified text.
 Higher emotional intensity should lower the "stability". 
 Your output should be in the following JSON format:
