@@ -129,22 +129,18 @@ class AudiobookBuilder:
         # TODO: optimize algorithm to linear time using sliding window on top of cumulative length sums.
         context_table = []
         for i in range(len(phrases)):
-            left_text, left_length, right_text, right_length = '', 0, '', 0
-            for j in range(i - 1, -1, -1):
-                if left_length + len(phrases[j].text) < context_length:
-                    left_length += len(phrases[k].text)
-                    left_text += phrases[k].text
+            left_text, right_text = '', ''
+            for phrase in phrases[max(0, i-1)::-1]:
+                if len(left_text) + len(phrase.text) < context_length:
+                    left_text += phrase.text
                 else:
                     break
-            for k in range(i + 1, len(phrases)):
-                if right_length + len(phrases[k].text) < context_length:
-                    right_length += len(phrases[k].text)
-                    right_text += phrases[k].text
+            for phrase in phrases[i+1:]:
+                if len(right_text) + len(phrase.text) < context_length:
+                    right_text += phrase.text
                 else:
                     break
-            context_table.append((left_length, right_length))
-            print("Context")
-            print(left_length, right_length)
+            context_table.append((left_text, right_text))
         return context_table
 
     def _add_previous_and_next_context_to_tts_params(
