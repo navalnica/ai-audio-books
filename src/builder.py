@@ -2,29 +2,22 @@ import asyncio
 import os
 from asyncio import TaskGroup
 from pathlib import Path
-from typing import Callable, Any, List
+from typing import Any, Callable, List
 from uuid import uuid4
 
 from langchain_community.callbacks import get_openai_callback
 from pydantic import BaseModel
 from pydub import AudioSegment
 
-from src.web.constructor import HTMLGenerator
-from src.web.utils import (
-    create_status_html,
-    generate_full_text_split_without_effect_html,
-    generate_full_text_split_with_effect_html,
-    generate_voice_assignments_html,
-)
 from src import tts, utils
 from src.config import ELEVENLABS_MAX_PARALLEL, OPENAI_MAX_PARALLEL, logger
 from src.lc_callbacks import LCMessageLoggerAsync
 from src.preprocess_tts_text_chain import TTSTextProcessorWithSSML
 from src.schemas import SoundEffectsParams, TTSParams, TTSTimestampsAlignment, TTSTimestampsResponse
 from src.select_voice_chain import (
+    CharacterPropertiesNullable,
     SelectVoiceChainOutput,
     VoiceSelector,
-    CharacterPropertiesNullable,
 )
 from src.sound_effects_design import (
     SoundEffectDescription,
@@ -32,7 +25,14 @@ from src.sound_effects_design import (
     create_sound_effects_design_chain,
 )
 from src.text_split_chain import SplitTextOutput, create_split_text_chain
-from src.utils import GPTModels, replace_labels, get_audio_from_voice_id, get_character_color
+from src.utils import GPTModels, prettify_unknown_character_label
+from src.web.constructor import HTMLGenerator
+from src.web.utils import (
+    create_status_html,
+    generate_text_split_inner_html_no_effect,
+    generate_text_split_inner_html_with_effects,
+    generate_voice_mapping_inner_html,
+)
 
 
 class TTSPhrasesGenerationOutput(BaseModel):
@@ -301,137 +301,76 @@ class AudiobookBuilder:
         logger.info(f'saving concatenated audiobook to: "{out_wav_fp}"')
         concat.export(out_wav_fp, format="wav")
 
-    async def process_single_task(
-        self, semaphore: asyncio.Semaphore, func: Callable, **params
-    ) -> Any:
-        async with semaphore:
-            return await func(**params)
-
-    async def create_emotion_text_task(
-        self, semaphore: asyncio.Semaphore, text: str
-    ) -> asyncio.Task:
-        return asyncio.create_task(
-            self.process_single_task(
-                semaphore=semaphore,
-                func=self.text_tts_processor.run,
-                text=text,
-            )
-        )
-
-    async def create_effect_text_task(
-        self, semaphore: asyncio.Semaphore, text: str
-    ) -> asyncio.Task:
-        return asyncio.create_task(
-            self.process_single_task(
-                semaphore=semaphore,
-                func=self._design_sound_effects,
-                text=text,
-            )
-        )
-
-    async def create_voice_mapping_task(
-        self, semaphore: asyncio.Semaphore, text_split: SplitTextOutput
-    ) -> asyncio.Task:
-        return asyncio.create_task(
-            self.process_single_task(
-                semaphore=semaphore,
-                func=self._map_characters_to_voices,
-                text_split=text_split,
-            )
-        )
-
-    async def prepare_text_for_tts_with_voice_mapping(
+    def _get_text_split_html(
         self,
-        full_text: str,
         text_split: SplitTextOutput,
-        generate_effects: bool,
-        use_user_voice: bool,
-        voice_id: str = None,
+        sound_effects_descriptions: list[SoundEffectDescription] | None,
     ):
-        semaphore = asyncio.Semaphore(OPENAI_MAX_PARALLEL)
-        prepared_texts: List[Any] = []
-        effects = None
-        voice_mapping = None
+        # modify copies of original phrases, keep original intact
+        character_phrases = [p.model_copy(deep=True) for p in text_split.phrases]
+        for phrase in character_phrases:
+            phrase.character = prettify_unknown_character_label(phrase.character)
 
-        async with TaskGroup() as tg:
-            # Create emotion processing tasks
-            emotion_tasks = [
-                tg.create_task(
-                    self.process_single_task(
-                        semaphore=semaphore,
-                        func=self.text_tts_processor.run,
-                        text=phrase.text,
-                    ),
-                    name=f"emotion_task_{i}"
-                )
-                for i, phrase in enumerate(text_split.phrases)
-            ]
-
-            # Create effect task if needed
-            effect_task = None
-            if generate_effects:
-                effect_task = tg.create_task(
-                    self.process_single_task(
-                        semaphore=semaphore,
-                        func=self._design_sound_effects,
-                        text=full_text,
-                    ),
-                    name="effect_task"
-                )
-
-            # Create voice mapping task if needed
-            voice_mapping_task = None
-            if not use_user_voice:
-                voice_mapping_task = tg.create_task(
-                    self.process_single_task(
-                        semaphore=semaphore,
-                        func=self._map_characters_to_voices,
-                        text_split=text_split,
-                    ),
-                    name="voice_mapping_task"
-                )
-
-        # Process results after all tasks are complete
-        prepared_texts = [task.result() for task in emotion_tasks]
-
-        if generate_effects:
-            effects = effect_task.result()
-
-        if not use_user_voice:
-            voice_mapping = voice_mapping_task.result()
+        if not sound_effects_descriptions:
+            inner = generate_text_split_inner_html_no_effect(character_phrases=character_phrases)
         else:
-            voice_mapping = SelectVoiceChainOutput(
-                character2props={
-                    char: CharacterPropertiesNullable(gender=None, age_group=None)
-                    for char in text_split.characters
-                },
-                character2voice={char: voice_id for char in text_split.characters},
+            inner = generate_text_split_inner_html_with_effects(
+                character_phrases=character_phrases,
+                sound_effects_descriptions=sound_effects_descriptions,
             )
 
-        return prepared_texts, effects, voice_mapping
+        final = self.html_generator.generate_text_split(inner)
+        return final
 
-    def get_effect_params(
-        self, text_split: SplitTextOutput, se_design_output: SoundEffectsDesignOutput
+    def _get_voice_mapping_html(
+        self, use_user_voice: bool, select_voice_chain_out: SelectVoiceChainOutput
     ):
-        effects_texts = [effect.prompt for effect in se_design_output.sound_effects_descriptions]
-        text_between_effects_texts = [
-            effect.text_between_tags for effect in se_design_output.sound_effects_descriptions
-        ]
+        if use_user_voice:
+            return ''
+        inner = generate_voice_mapping_inner_html(select_voice_chain_out)
+        final = self.html_generator.generate_voice_assignments(inner)
+        return final
 
-        lines_for_sound_effect = []
-        for text in text_between_effects_texts:
-            for i, phrase in enumerate(text_split.phrases):
-                if text.lower() in phrase.text.lower():
-                    lines_for_sound_effect.append(i)
+    def _get_yield_data_stage_1(self, text_split_html: str):
+        status_html = create_status_html(
+            "Text Analysis Complete",
+            [("Text splitting", True), ("Mapping characters to voices...", False)],
+        )
+        html = status_html + text_split_html
+        return None, "", html
 
-        return effects_texts, text_between_effects_texts, lines_for_sound_effect
+    def _get_yield_data_stage_2(self, text_split_html: str, voice_mapping_html: str):
+        status_html = create_status_html(
+            "Voice Mapping Complete",
+            [("Text splitting", True), ("Voice mapping", True), ("Generating audio...", False)],
+        )
+        html = (
+            status_html + text_split_html + voice_mapping_html + '</div>'
+        )  # TODO: why to add  </div> ?
+        return None, "", html
+
+    def _get_yield_data_stage_3(
+        self, final_audio_fp: str, text_split_html: str, voice_mapping_html: str
+    ):
+        status_html = create_status_html(
+            "Process Complete ✨",
+            [("Text splitting", True), ("Voice mapping", True), ("Audio generation", True)],
+        )
+        third_stage_result_html = (
+            status_html
+            + text_split_html
+            + voice_mapping_html
+            + self.html_generator.generate_final_message()
+            + '</div>'  # TODO: why to add </div> ?
+        )
+        return final_audio_fp, "", third_stage_result_html
 
     async def run(
         self,
         text: str,
         generate_effects: bool,
         use_user_voice: bool = False,
-        voice_id: str = None,
+        voice_id: str | None = None,
     ):
         now_str = utils.get_utc_now_str()
         uuid_trimmed = str(uuid4()).split('-')[0]
@@ -442,76 +381,65 @@ class AudiobookBuilder:
         debug_dp = os.path.join(out_dp_root, 'debug')
         os.makedirs(debug_dp)
 
+        # TODO: currently, we are constantly writing and reading audio segments from files.
+        # I think it will be more efficient to keep all audio in memory.
+
+        # zero stage
         if use_user_voice and not voice_id:
             yield None, "", self.html_generator.generate_message_without_voice_id()
 
         else:
-            # zero stage
             yield None, "", self.html_generator.generate_status(
                 "Starting Process", [("Splitting text into characters...", False)]
             )
 
-            # first stage
-            # with get_openai_callback() as cb:
             text_split = await self._split_text(text=text)
-            text_split_dict_list = [item.model_dump() for item in text_split._phrases]
-            for item in text_split_dict_list:
-                item['character'] = replace_labels(item['character'])
+            self._save_text_split_debug_data(text_split=text_split, out_dp=debug_dp)
 
-            text_split_html = generate_full_text_split_without_effect_html(text_split_dict_list)
-            text_split_result_html = self.html_generator.generate_text_split(text_split_html)
-            status_html = create_status_html(
-                "Text Analysis Complete",
-                [("Text splitting", True), ("Mapping characters to voices...", False)],
+            # yield stage 1
+            text_split_html = self._get_text_split_html(
+                text_split=text_split, sound_effects_descriptions=None
             )
-            first_stage_result_html = status_html + text_split_result_html
-            yield None, "", first_stage_result_html
+            yield self._get_yield_data_stage_1(text_split_html=text_split_html)
 
-            # second stage
-            (
-                tts_params_list,
-                se_design_output,
-                select_voice_chain_out,
-            ) = await self.prepare_text_for_tts_with_voice_mapping(
-                text, text_split, generate_effects, use_user_voice, voice_id
-            )
+            # TODO: call sound effects chain in parallel with text split chain
 
             if generate_effects:
-                (
-                    effects_texts,
-                    text_between_effects_texts,
-                    lines_for_sound_effect,
-                ) = self.get_effect_params(text_split, se_design_output)
-                text_split_html = generate_full_text_split_with_effect_html(
-                    text_split_dict_list,
-                    effects_texts,
-                    text_between_effects_texts,
+                se_design_output = await self._design_sound_effects(text=text)
+                se_descriptions = se_design_output.sound_effects_descriptions
+                text_split_html = self._get_text_split_html(
+                    text_split=text_split, sound_effects_descriptions=se_descriptions
                 )
 
-            status_html = create_status_html(
-                "Voice Mapping Complete",
-                [("Text splitting", True), ("Voice mapping", True), ("Generating audio...", False)],
-            )
-            text_split_result_html = self.html_generator.generate_text_split(text_split_html)
+            # TODO: run these 2 chains in parallel
             if not use_user_voice:
-                voice_assignments_html = generate_voice_assignments_html(select_voice_chain_out)
-                voice_assignments_result_html = self.html_generator.generate_voice_assignments(
-                    voice_assignments_html
-                )
+                select_voice_chain_out = await self._map_characters_to_voices(text_split=text_split)
             else:
-                voice_assignments_result_html = ''
-            second_stage_result_html = (
-                status_html + text_split_result_html + voice_assignments_result_html + '</div>'
-            )
-            yield None, "", second_stage_result_html
+                if voice_id is None:
+                    raise ValueError(f'voice_id is None')
+                select_voice_chain_out = SelectVoiceChainOutput(
+                    character2props={
+                        char: CharacterPropertiesNullable(gender=None, age_group=None)
+                        for char in text_split.characters
+                    },
+                    character2voice={char: voice_id for char in text_split.characters},
+                )
+            tts_params_list = await self._prepare_text_for_tts(text_split=text_split)
 
-            # third stage
+            # yield stage 2
+            voice_mapping_html = self._get_voice_mapping_html(
+                use_user_voice=use_user_voice, select_voice_chain_out=select_voice_chain_out
+            )
+            yield self._get_yield_data_stage_2(
+                text_split_html=text_split_html, voice_mapping_html=voice_mapping_html
+            )
+
             tts_params_list = self._add_voice_ids_to_tts_params(
                 text_split=text_split,
                 tts_params_list=tts_params_list,
                 character2voice=select_voice_chain_out.character2voice,
             )
-            # print(tts_params_list)
+
             tts_dp = os.path.join(out_dp_root, 'tts')
             os.makedirs(tts_dp)
             tts_out = await self._generate_tts_audio(tts_params_list=tts_params_list, out_dp=tts_dp)
@@ -521,8 +449,6 @@ class AudiobookBuilder:
             )
 
             if generate_effects:
-                se_descriptions = se_design_output.sound_effects_descriptions
-
                 se_descriptions = self._update_sound_effects_descriptions_with_durations(
                     sound_effects_descriptions=se_descriptions, char2time=tts_out.char2time
                 )
@@ -596,16 +522,11 @@ class AudiobookBuilder:
 
             utils.rm_dir_conditional(dp=out_dp_root, to_remove=self.rm_artifacts)
 
-            status_html = create_status_html(
-                "Process Complete ✨",
-                [("Text splitting", True), ("Voice mapping", True), ("Audio generation", True)],
+            # yield stage 3
+            yield self._get_yield_data_stage_3(
+                final_audio_fp=final_audio_fp,
+                text_split_html=text_split_html,
+                voice_mapping_html=voice_mapping_html,
             )
-            third_stage_result_html = (
-                status_html
-                + text_split_result_html
-                + voice_assignments_result_html
-                + self.html_generator.generate_final_message()
-                + '</div>'
-            )
-            yield final_audio_fp, "", third_stage_result_html
-        # logger.info(f'end of the process. openai callback stats: {cb}')
+
+        logger.info(f'end of {self.name}.run()')
