@@ -8,9 +8,14 @@ from pydantic import BaseModel
 from pydub import AudioSegment
 
 from src import tts, utils
-from src.config import ELEVENLABS_MAX_PARALLEL, OPENAI_MAX_PARALLEL, logger
+from src.config import (
+    CONTEXT_CHAR_LEN_FOR_TTS,
+    ELEVENLABS_MAX_PARALLEL,
+    OPENAI_MAX_PARALLEL,
+    logger,
+)
 from src.lc_callbacks import LCMessageLoggerAsync
-from src.preprocess_tts_text_chain import TTSTextProcessorWithSSML
+from src.preprocess_tts_emotions_chain import TTSParamProcessor
 from src.schemas import SoundEffectsParams, TTSParams, TTSTimestampsAlignment, TTSTimestampsResponse
 from src.select_voice_chain import SelectVoiceChainOutput, VoiceSelector
 from src.sound_effects_design import (
@@ -18,6 +23,7 @@ from src.sound_effects_design import (
     SoundEffectsDesignOutput,
     create_sound_effects_design_chain,
 )
+from src.text_modification_chain import modify_text_chain
 from src.text_split_chain import SplitTextOutput, create_split_text_chain
 from src.utils import GPTModels
 
@@ -31,11 +37,23 @@ class AudiobookBuilder:
 
     def __init__(self, rm_artifacts: bool = False):
         self.voice_selector = VoiceSelector()
-        self.text_tts_processor = TTSTextProcessorWithSSML()
+        self.params_tts_processor = TTSParamProcessor()
         self.rm_artifacts = rm_artifacts
         self.min_sound_effect_duration_sec = 1
         self.sound_effects_prompt_influence = 0.75  # seems to work nicely
         self.name = type(self).__name__
+
+    @staticmethod
+    async def _prepare_text_for_tts(text: str) -> str:
+        chain = modify_text_chain(llm_model=GPTModels.GPT_4o)
+        with get_openai_callback() as cb:
+            result = await chain.ainvoke(
+                {"text": text}, config={"callbacks": [LCMessageLoggerAsync()]}
+            )
+        logger.info(
+            f'End of modifying text with caps and symbols(?, !, ...). Openai callback stats: {cb}'
+        )
+        return result.text_modified
 
     @staticmethod
     async def _split_text(text: str) -> SplitTextOutput:
@@ -75,7 +93,7 @@ class AudiobookBuilder:
         logger.info(f'end of mapping characters to voices. openai callback stats: {cb}')
         return chain_out
 
-    async def _prepare_text_for_tts(self, text_split: SplitTextOutput) -> list[TTSParams]:
+    async def _prepare_params_for_tts(self, text_split: SplitTextOutput) -> list[TTSParams]:
         semaphore = asyncio.Semaphore(OPENAI_MAX_PARALLEL)
 
         async def run_task_with_semaphore(func, **params):
@@ -88,7 +106,7 @@ class AudiobookBuilder:
         for character_phrase in text_split.phrases:
             tasks.append(
                 run_task_with_semaphore(
-                    func=self.text_tts_processor.run,
+                    func=self.params_tts_processor.run,
                     text=character_phrase.text,
                 )
             )
@@ -105,6 +123,44 @@ class AudiobookBuilder:
     ) -> list[TTSParams]:
         for character_phrase, params in zip(text_split.phrases, tts_params_list):
             params.voice_id = character2voice[character_phrase.character]
+        return tts_params_list
+
+    @staticmethod
+    def _get_left_and_right_contexts_for_each_phrase(
+        phrases, context_length=CONTEXT_CHAR_LEN_FOR_TTS
+    ):
+        """
+        Return phrases from left and right sides which don't exceed `context_length`.
+        Approx. number of words/tokens based on `context_length` can be calculated by dividing it by 5.
+        """
+        # TODO: split first context phrase if it exceeds `context_length`, currently it's not added.
+        # TODO: optimize algorithm to linear time using sliding window on top of cumulative length sums.
+        left_right_contexts = []
+        for i in range(len(phrases)):
+            left_text, right_text = '', ''
+            for j in range(i - 1, -1, -1):
+                if len(left_text) + len(phrases[j].text) < context_length:
+                    left_text = phrases[j].text + left_text
+                else:
+                    break
+            for phrase in phrases[i + 1 :]:
+                if len(right_text) + len(phrase.text) < context_length:
+                    right_text += phrase.text
+                else:
+                    break
+            left_right_contexts.append((left_text, right_text))
+        return left_right_contexts
+
+    def _add_previous_and_next_context_to_tts_params(
+        self,
+        text_split: SplitTextOutput,
+        tts_params_list: list[TTSParams],
+    ) -> list[TTSParams]:
+        left_right_contexts = self._get_left_and_right_contexts_for_each_phrase(text_split.phrases)
+        for cur_contexts, params in zip(left_right_contexts, tts_params_list):
+            left_context, right_context = cur_contexts
+            params.previous_text = left_context
+            params.next_text = right_context
         return tts_params_list
 
     @staticmethod
@@ -305,21 +361,29 @@ class AudiobookBuilder:
             # TODO: currenly, we are constantly writing and reading audio segments from files.
             # I think it will be more efficient to keep all audio in memory.
 
-            text_split = await self._split_text(text=text)
-            self._save_text_split_debug_data(text_split=text_split, out_dp=debug_dp)
+            text_for_tts = await self._prepare_text_for_tts(text=text)
 
             # TODO: call sound effects chain in parallel with text split chain
+
+            text_split = await self._split_text(text=text_for_tts)
+            self._save_text_split_debug_data(text_split=text_split, out_dp=debug_dp)
+
             if generate_effects:
-                se_design_output = await self._design_sound_effects(text=text)
+                se_design_output = await self._design_sound_effects(text=text_for_tts)
 
             # TODO: run these 2 chains in parallel
             select_voice_chain_out = await self._map_characters_to_voices(text_split=text_split)
-            tts_params_list = await self._prepare_text_for_tts(text_split=text_split)
+            tts_params_list = await self._prepare_params_for_tts(text_split=text_split)
 
             tts_params_list = self._add_voice_ids_to_tts_params(
                 text_split=text_split,
                 tts_params_list=tts_params_list,
                 character2voice=select_voice_chain_out.character2voice,
+            )
+
+            tts_params_list = self._add_previous_and_next_context_to_tts_params(
+                text_split=text_split,
+                tts_params_list=tts_params_list,
             )
 
             tts_dp = os.path.join(out_dp_root, 'tts')

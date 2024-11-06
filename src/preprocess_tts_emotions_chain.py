@@ -3,14 +3,20 @@ import json
 import openai
 from elevenlabs import VoiceSettings
 
-from src.config import OPENAI_API_KEY, logger
+from src.config import (
+    DEFAULT_TTS_SIMILARITY_BOOST,
+    DEFAULT_TTS_STABILITY,
+    DEFAULT_TTS_STABILITY_ACCEPTABLE_RANGE,
+    DEFAULT_TTS_STYLE,
+    OPENAI_API_KEY,
+    logger,
+)
+from src.prompts import EMOTION_STABILITY_MODIFICATION
 from src.schemas import TTSParams
 from src.utils import GPTModels, auto_retry
 
-from .prompts import TEXT_MODIFICATION_WITH_SSML
 
-
-class TTSTextProcessorWithSSML:
+class TTSParamProcessor:
 
     # TODO: refactor to langchain function (?)
 
@@ -19,16 +25,17 @@ class TTSTextProcessorWithSSML:
 
     @staticmethod
     def _wrap_results(data: dict, default_text: str) -> TTSParams:
-        modified_text = data.get('modified_text', default_text)
-        voice_params = data.get('params', {})
-        stability = voice_params.get('stability', 0.5)
-        similarity_boost = voice_params.get('similarity_boost', 0.5)
-        style = voice_params.get('style', 0.5)
+        stability = data.get('stability', DEFAULT_TTS_STABILITY)
+        stability = max(stability, DEFAULT_TTS_STABILITY_ACCEPTABLE_RANGE[0])
+        stability = min(stability, DEFAULT_TTS_STABILITY_ACCEPTABLE_RANGE[1])
+
+        similarity_boost = DEFAULT_TTS_SIMILARITY_BOOST
+        style = DEFAULT_TTS_STYLE
 
         params = TTSParams(
             # NOTE: voice will be set later in the builder pipeline
             voice_id='',
-            text=modified_text,
+            text=default_text,
             # reference: https://elevenlabs.io/docs/speech-synthesis/voice-settings
             voice_settings=VoiceSettings(
                 stability=stability,
@@ -46,7 +53,7 @@ class TTSTextProcessorWithSSML:
         completion = await self.client.chat.completions.create(
             model=GPTModels.GPT_4o,
             messages=[
-                {"role": "system", "content": TEXT_MODIFICATION_WITH_SSML},
+                {"role": "system", "content": EMOTION_STABILITY_MODIFICATION},
                 {"role": "user", "content": text_prepared},
             ],
             response_format={"type": "json_object"},
@@ -59,8 +66,8 @@ class TTSTextProcessorWithSSML:
             output_dict = json.loads(chatgpt_output)
             logger.info(f"TTS text processing succeeded: {output_dict}")
         except json.JSONDecodeError as e:
-            logger.exception("Error in parsing the modified text")
-            raise ValueError(f"error, output_text: {chatgpt_output}") from e
+            logger.exception(f"Error in parsing LLM output: '{chatgpt_output}'")
+            raise e
 
         output_wrapped = self._wrap_results(output_dict, default_text=text_prepared)
         return output_wrapped
