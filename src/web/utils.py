@@ -70,7 +70,7 @@ def generate_legend_for_text_split_html(
     legend_html += "<div style='font-size: 1.35em; font-weight: bold;'>Legend:</div>"
 
     unique_characters = set(item['character'] or 'Unassigned' for item in text_split_dict_list)
-
+    unique_characters = sorted(unique_characters, key=lambda x: x.lower())
     for character in unique_characters:
         color = get_character_color(character)
         legend_html += f"<div style='color: {color}; font-size: 1.1em; margin-bottom: 0.25rem;'>{character}</div>"
