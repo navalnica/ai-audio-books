@@ -4,17 +4,16 @@ import openai
 from elevenlabs import VoiceSettings
 
 from src.config import (
+    DEFAULT_TTS_SIMILARITY_BOOST,
+    DEFAULT_TTS_STABILITY,
+    DEFAULT_TTS_STABILITY_ACCEPTABLE_RANGE,
+    DEFAULT_TTS_STYLE,
     OPENAI_API_KEY,
     logger,
-    DEFAULT_TTS_STABILITY,
-    DEFAULT_TTS_SIMILARITY_BOOST,
-    DEFAULT_TTS_STYLE,
-    DEFAULT_TTS_STABILITY_ACCEPTABLE_RANGE,
 )
+from src.prompts import EMOTION_STABILITY_MODIFICATION
 from src.schemas import TTSParams
 from src.utils import GPTModels, auto_retry
-
-from src.prompts import EMOTION_STABILITY_MODIFICATION
 
 
 class TTSParamProcessor:

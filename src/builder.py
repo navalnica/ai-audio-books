@@ -9,10 +9,10 @@ from pydub import AudioSegment
 
 from src import tts, utils
 from src.config import (
+    CONTEXT_CHAR_LEN_FOR_TTS,
     ELEVENLABS_MAX_PARALLEL,
     OPENAI_MAX_PARALLEL,
     logger,
-    CONTEXT_CHAR_LEN_FOR_TTS,
 )
 from src.lc_callbacks import LCMessageLoggerAsync
 from src.preprocess_tts_emotions_chain import TTSParamProcessor
@@ -23,8 +23,8 @@ from src.sound_effects_design import (
     SoundEffectsDesignOutput,
     create_sound_effects_design_chain,
 )
-from src.text_split_chain import SplitTextOutput, create_split_text_chain
 from src.text_modification_chain import modify_text_chain
+from src.text_split_chain import SplitTextOutput, create_split_text_chain
 from src.utils import GPTModels
 
 
