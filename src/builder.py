@@ -140,7 +140,6 @@ class AudiobookBuilder:
                 else:
                     break
             context_table.append((left_text, right_text))
-            print(left_text, right_text)
         return context_table
 
     def _add_previous_and_next_context_to_tts_params(
