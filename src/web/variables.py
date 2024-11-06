@@ -18,7 +18,7 @@ DESCRIPTION_JS = """function createGradioAnimation() {
     container.appendChild(header);
 
     // Title with spaces
-    var titleText = 'AI   Audio   Books';
+    var titleText = 'AI   Audio   Books   📕👨‍💻🎧';
     var title = document.createElement('h1');
     title.style.fontSize = '2.5rem';
     title.style.fontWeight = '700';
