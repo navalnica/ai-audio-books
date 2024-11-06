@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import os
 from pathlib import Path
 from uuid import uuid4
