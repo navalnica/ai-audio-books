@@ -126,14 +126,16 @@ class AudiobookBuilder:
         return tts_params_list
 
     @staticmethod
-    def _compute_contexts(phrases, context_length=CONTEXT_CHAR_LEN_FOR_TTS):
+    def _get_left_and_right_contexts_for_each_phrase(
+        phrases, context_length=CONTEXT_CHAR_LEN_FOR_TTS
+    ):
         """
         Return phrases from left and right sides which don't exceed `context_length`.
-        Approx. number of words/tokens based on `context_length` can be calculated by dividing it to 5.
+        Approx. number of words/tokens based on `context_length` can be calculated by dividing it by 5.
         """
         # TODO: split first context phrase if it exceeds `context_length`, currently it's not added.
         # TODO: optimize algorithm to linear time using sliding window on top of cumulative length sums.
-        context_table = []
+        left_right_contexts = []
         for i in range(len(phrases)):
             left_text, right_text = '', ''
             for j in range(i - 1, -1, -1):
@@ -146,17 +148,17 @@ class AudiobookBuilder:
                     right_text += phrase.text
                 else:
                     break
-            context_table.append((left_text, right_text))
-        return context_table
+            left_right_contexts.append((left_text, right_text))
+        return left_right_contexts
 
     def _add_previous_and_next_context_to_tts_params(
         self,
         text_split: SplitTextOutput,
         tts_params_list: list[TTSParams],
     ) -> list[TTSParams]:
-        number_of_context_phrases = self._compute_contexts(text_split.phrases)
-        for num_of_phrases, params in zip(number_of_context_phrases, tts_params_list):
-            left_context, right_context = num_of_phrases
+        left_right_contexts = self._get_left_and_right_contexts_for_each_phrase(text_split.phrases)
+        for cur_contexts, params in zip(left_right_contexts, tts_params_list):
+            left_context, right_context = cur_contexts
             params.previous_text = left_context
             params.next_text = right_context
         return tts_params_list
