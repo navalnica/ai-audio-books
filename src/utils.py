@@ -101,9 +101,7 @@ def get_audio_duration(filepath: str) -> float:
 
 def normalize_audio(audio_segment: AudioSegment, target_dBFS: float = -20.0) -> AudioSegment:
     """Normalize an audio segment to the target dBFS level."""
-
     # TODO: does it work as expected?
-
     delta = target_dBFS - audio_segment.dBFS
     res = audio_segment.apply_gain(delta)
     return res
