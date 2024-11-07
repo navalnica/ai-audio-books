@@ -28,11 +28,12 @@ def create_status_html(status: str, steps: list[tuple[str, bool]], error_text: s
         }
     """
 
+    spinner_div = "<div class='spinner'></div>"
     steps_html = "\n".join(
         [
             f'<div class="step-item" style="display: flex; align-items: center; padding: 0.8rem; margin-bottom: 0.5rem; background-color: #31395294; border-radius: 6px; font-weight: 600;">'
             f'<span class="step-icon" style="margin-right: 1rem; font-size: 1.3rem;">'
-            f'{"✅" if completed else "<div class='spinner'></div>"}'
+            f'{"✅" if completed else spinner_div}'
             f'</span>'
             f'<span class="step-text" style="font-size: 1.1rem; color: #e0e0e0;">{step}</span>'
             f'</div>'
