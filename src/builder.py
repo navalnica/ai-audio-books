@@ -387,37 +387,43 @@ class AudiobookBuilder:
         final = self.html_generator.generate_voice_assignments(inner)
         return final
 
+    STAGE_1 = 'Text Analysis'
+    STAGE_2 = 'Selected Voices'
+    STAGE_3 = 'Audio Generation'
+
+    def _get_yield_data_stage_0(self):
+        status = self.html_generator.generate_status("Starting", [("Analyzing Text...", False)])
+        return None, "", status
+
     def _get_yield_data_stage_1(self, text_split_html: str):
         status_html = create_status_html(
             "Text Analysis Complete",
-            [("Text splitting", True), ("Mapping characters to voices...", False)],
+            [(self.STAGE_1, True), ("Selecting Voices...", False)],
         )
         html = status_html + text_split_html
         return None, "", html
 
     def _get_yield_data_stage_2(self, text_split_html: str, voice_mapping_html: str):
         status_html = create_status_html(
-            "Voice Mapping Complete",
-            [("Text splitting", True), ("Voice mapping", True), ("Generating audio...", False)],
+            "Voice Selection Complete",
+            [(self.STAGE_1, True), (self.STAGE_2, True), ("Generating Audio...", False)],
         )
-        html = (
-            status_html + text_split_html + voice_mapping_html + '</div>'
-        )  # TODO: why to add  </div> ?
+        html = status_html + text_split_html + voice_mapping_html + '</div>'
         return None, "", html
 
     def _get_yield_data_stage_3(
         self, final_audio_fp: str, text_split_html: str, voice_mapping_html: str
     ):
         status_html = create_status_html(
-            "Process Complete ✨",
-            [("Text splitting", True), ("Voice mapping", True), ("Audio generation", True)],
+            "Audiobook is ready ✨",
+            [(self.STAGE_1, True), (self.STAGE_2, True), (self.STAGE_3, True)],
         )
         third_stage_result_html = (
             status_html
             + text_split_html
             + voice_mapping_html
             + self.html_generator.generate_final_message()
-            + '</div>'  # TODO: why to add </div> ?
+            + '</div>'
         )
         return final_audio_fp, "", third_stage_result_html
 
@@ -445,9 +451,7 @@ class AudiobookBuilder:
             yield None, "", self.html_generator.generate_message_without_voice_id()
 
         else:
-            yield None, "", self.html_generator.generate_status(
-                "Starting Process", [("Splitting text into characters...", False)]
-            )
+            yield self._get_yield_data_stage_0()
 
             text_for_tts = await self._prepare_text_for_tts(text=text)
 

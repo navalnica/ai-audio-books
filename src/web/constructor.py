@@ -41,6 +41,5 @@ class HTMLGenerator:
         return '''
             <div class="audiobook-ready" style="background-color: #31395294; padding: 1rem; border-radius: 8px; margin-top: 1rem; text-align: center;">
                 <h3 style="color: rgb(224, 224, 224); font-size: 1.5em; margin-bottom: 1rem;">🎉 Your audiobook is ready!</h3>
-                <p style="color: #4299e1; cursor: pointer;" onclick="document.querySelector('.play-pause-button.icon.svelte-ije4bl').click();">🔊 Press play to listen 🔊</p>
             </div>
         '''

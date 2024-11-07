@@ -63,10 +63,11 @@ DESCRIPTION_JS = """function createGradioAnimation() {
     // Define steps with icons
     var steps = [
         { text: 'Split text into characters', icon: '📚' },
-        { text: 'Assign each character a voice', icon: '🎭' },
+        { text: 'Select voice for each character', icon: '🎭' },
         { text: 'Enhance text to convey emotions and intonations during Text-to-Speech', icon: '😊' },
         { text: 'Generate audiobook using Text-to-Speech model', icon: '🎧' },
         { text: 'Generate sound effects to create immersive atmosphere (optional)', icon: '🎵' },
+        { text: 'Clone your voice to generate the audiobook (optional)', icon: '💥' },
     ];
 
     // Create steps list
