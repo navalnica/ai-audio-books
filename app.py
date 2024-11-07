@@ -185,5 +185,4 @@ with gr.Blocks(js=DESCRIPTION_JS, theme=GRADIO_THEME) as ui:
         outputs=error_output,
     )
 
-# ui.launch(auth=get_auth_params())
-ui.launch()
+ui.launch(auth=get_auth_params())
