@@ -1,9 +1,9 @@
 import typing as t
 
 from langchain_core.callbacks import AsyncCallbackHandler
+from langchain_core.messages import BaseMessage
 from langchain_core.outputs import ChatGeneration
 from langchain_core.outputs.llm_result import LLMResult
-from langchain_core.messages import BaseMessage
 
 from src.config import logger
 
@@ -45,13 +45,9 @@ class LCMessageLoggerAsync(AsyncCallbackHandler):
         """Run when LLM ends running."""
         generations = response.generations
         if len(generations) != 1:
-            raise ValueError(
-                f'expected "generations" to have len 1, got: {len(generations)}'
-            )
+            raise ValueError(f'expected "generations" to have len 1, got: {len(generations)}')
         if len(generations[0]) != 1:
-            raise ValueError(
-                f'expected "generations[0]" to have len 1, got: {len(generations[0])}'
-            )
+            raise ValueError(f'expected "generations[0]" to have len 1, got: {len(generations[0])}')
 
         if self._log_raw_llm_response is True:
             gen: ChatGeneration = generations[0][0]
