@@ -388,7 +388,7 @@ class AudiobookBuilder:
         return final
 
     STAGE_1 = 'Text Analysis'
-    STAGE_2 = 'Selected Voices'
+    STAGE_2 = 'Voices Selection'
     STAGE_3 = 'Audio Generation'
 
     def _get_yield_data_stage_0(self):
