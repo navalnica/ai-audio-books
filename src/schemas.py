@@ -36,7 +36,6 @@ OMIT = t.cast(t.Any, ...)
 
 
 class TTSParams(ExtraForbidModel):
-
     # NOTE: pydantic treats Ellipsis as a mark of a required field.
     # in order to set Ellipsis as actual field default value, we need to use workaround
     # and use Field's default_factory
@@ -180,15 +179,9 @@ class TTSTimestampsAlignment(ExtraForbidModel):
 
         return res
 
-    @staticmethod
-    def _get_safe_index(ix: int, collection: list):
-        res = min(ix, len(collection) - 1)
-        res = max(0, res)
-        return res
-
     def get_start_time_by_char_ix(self, char_ix: int, safe=True):
         if safe:
-            char_ix = self._get_safe_index(
+            char_ix = utils.get_collection_safe_index(
                 ix=char_ix,
                 collection=self.character_start_times_seconds,
             )
@@ -196,7 +189,7 @@ class TTSTimestampsAlignment(ExtraForbidModel):
 
     def get_end_time_by_char_ix(self, char_ix: int, safe=True):
         if safe:
-            char_ix = self._get_safe_index(
+            char_ix = utils.get_collection_safe_index(
                 ix=char_ix,
                 collection=self.character_end_times_seconds,
             )

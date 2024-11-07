@@ -32,7 +32,7 @@ All you need to do - is to input the book text or select it from the provided Sa
 
 AI will do the rest:
 - split text into characters
-- assign each character a voice
+- select voice for each character
 - preprocess text to better convey emotions during Text-to-Speech
 - (optionally) add sound effects to create immersive atmosphere
 - generate audiobook using Text-to-Speech model

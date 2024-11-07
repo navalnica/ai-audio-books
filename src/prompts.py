@@ -134,12 +134,17 @@ For example, instead of placing the sound effect only on a single word or object
 tag a broader phrase making the effect feel part of the action or dialogue.
 - It's allowed to add no sound effects
 
-Example of a good prompt:
-"Old wooden staircase creaking under slow footsteps, each step producing uneven crackles, groans, and occasional sharp snaps, emphasizing age and fragility in a quiet, echoing space" - it's specific and rich in details
-
 Examples of bad prompts:
 1. "brief silence, creating a moment of tension" - it's too short, not specific and is an ambient sound.
 2. "brief, tense silence, filled with unspoken words and a slight undercurrent of tension" - very abstract, and breaks the rule of not generating silence
+3. "sudden burst of bright light filling a room, creating a warm and inviting atmosphere" - abstract
+4. "sudden, commanding gesture of a hand being lifted, creating a brief pause in conversation" - abstract
+5. "exaggerated, humorous emphasis on the age, suggesting an ancient, creaky presence"
+
+Examples of good prompts:
+1. "soft rustling of paper as a page is turned, delicate and gentle"
+2. "light thud of a magazine landing on a wooden table, slightly echoing in the quiet room"
+3. "Old wooden staircase creaking under slow footsteps, each step producing uneven crackles, groans, and occasional sharp snaps, emphasizing age and fragility in a quiet, echoing space" - it's specific and rich in details
 
 Response with the original text with selected phrases wrapped inside emotion XML tags.
 Do not modify original text!
